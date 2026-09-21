@@ -1,0 +1,8 @@
+{
+  "name": "old-market-gate-online",
+  "version": "1.0.0",
+  "private": true,
+  "description": "เกมบลัฟค้าของเถื่อนออนไลน์ 2-20 คน",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}
