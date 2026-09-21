@@ -31,7 +31,7 @@ function newGame(names,rounds,rnd){
     players:names.map(function(n){return {name:n,coins:START_COINS,hand:[],stall:emptyStall()};}),
     deck:[],piles:[[],[]],
     rounds:rounds,totalRounds:names.length*rounds,roundNo:0,sheriff:0,
-    merchants:[],prep:{},bags:{},inspIdx:0,offer:0,bounty:{},last:null,phase:'prep',log:[]
+    merchants:[],prep:{},bags:{},inspIdx:0,offer:0,offerItems:{hand:[],stall:{}},bounty:{},last:null,phase:'prep',log:[]
   };
   const scale=Math.max(1,Math.ceil(names.length/5));
   ALL.forEach(function(t){for(let i=0;i<DECK_COUNTS[t]*scale;i++)S.deck.push({id:S.nextId++,t:t});});
@@ -47,7 +47,7 @@ function beginRound(S){
   for(let i=1;i<n;i++)S.merchants.push((S.sheriff+i)%n);
   S.prep={};
   S.merchants.forEach(function(mi){S.prep[mi]={step:'market',discarded:0};});
-  S.bags={};S.inspIdx=0;S.offer=0;S.bounty={};S.last=null;S.log=[];S.phase='prep';
+  S.bags={};S.inspIdx=0;S.offer=0;S.offerItems={hand:[],stall:{}};S.bounty={};S.last=null;S.log=[];S.phase='prep';
 }
 function canReshuffle(S){return S.piles.some(function(p){return p.length>1;});}
 function reshuffle(S,rnd){
@@ -109,16 +109,40 @@ function loadBag(S,pi,ids,declared){
   S.bags[pi]={cards:cards,declared:declared};
   pr.step='done';
   if(S.merchants.every(function(mi){return S.prep[mi].step==='done';})){
-    S.phase='inspect';S.inspIdx=0;S.offer=0;S.bounty={};
+    S.phase='inspect';S.inspIdx=0;S.offer=0;S.offerItems={hand:[],stall:{}};S.bounty={};
   }
   return true;
 }
-function setOffer(S,amount){
+function offerEmpty(S){
+  const o=S.offerItems;
+  return !(S.offer>0||o.hand.length>0||Object.keys(o.stall).some(function(k){return o.stall[k]>0;}));
+}
+function describeGave(g){
+  const parts=[];
+  if(g.coins>0)parts.push(g.coins+' เหรียญ');
+  const st=Object.keys(g.stall).filter(function(t){return g.stall[t]>0;}).map(function(t){return GOODS[t].emoji+'×'+g.stall[t];});
+  if(st.length)parts.push('สินค้าจากแผง '+st.join(' '));
+  if(g.hand.length)parts.push('ไพ่จากมือ '+g.hand.map(function(c){return GOODS[c.t].emoji;}).join(''));
+  return parts.join(' + ');
+}
+function setOffer(S,amount,hand,stall){
+  // ข้อเสนอสินบนของพ่อค้า: เหรียญ + ไพ่จากมือ + สินค้าจากแผง (ส่งใหม่ทั้งชุดทุกครั้ง)
   if(S.phase!=='inspect')return false;
   const m=S.players[S.merchants[S.inspIdx]];
   let a=Math.floor(Number(amount));
   if(!isFinite(a)||a<0)a=0;
   S.offer=Math.min(a,m.coins);
+  const hs=uniq(Array.isArray(hand)?hand.map(Number):[]).filter(function(id){
+    return m.hand.some(function(c){return c.id===id;});
+  });
+  const st={};
+  if(stall&&typeof stall==='object'){
+    ALL.forEach(function(t){
+      let n=Math.floor(Number(stall[t]));
+      if(isFinite(n)&&n>0){n=Math.min(n,m.stall[t]);if(n>0)st[t]=n;}
+    });
+  }
+  S.offerItems={hand:hs,stall:st};
   return true;
 }
 function setBounty(S,pi,amount){
@@ -139,14 +163,25 @@ function resolve(S,mode){
   if(S.phase!=='inspect')return null;
   const mi=S.merchants[S.inspIdx];
   const m=S.players[mi],sh=S.players[S.sheriff],bag=S.bags[mi];
-  if(mode==='bribe'&&S.offer<1)return null;
+  if(mode==='bribe'&&offerEmpty(S))return null;
   const truth=bag.cards.every(function(c){return c.t===bag.declared;});
   const res={merchant:mi,declared:bag.declared,cards:bag.cards.slice(),mode:mode,truth:truth,paid:0,due:0,honest:null,kept:[],seized:[],bounty:[]};
   if(mode==='bribe'){
+    const gave={coins:0,hand:[],stall:{}};
     res.due=Math.min(S.offer,m.coins);
     res.paid=pay(m,sh,res.due);
+    gave.coins=res.paid;
+    S.offerItems.hand.forEach(function(id){
+      const k=m.hand.findIndex(function(c){return c.id===id;});
+      if(k>=0){const c=m.hand.splice(k,1)[0];sh.stall[c.t]++;gave.hand.push(c);}
+    });
+    Object.keys(S.offerItems.stall).forEach(function(t){
+      const n=Math.min(S.offerItems.stall[t],m.stall[t]);
+      if(n>0){m.stall[t]-=n;sh.stall[t]+=n;gave.stall[t]=n;}
+    });
+    res.gave=gave;
     res.kept=bag.cards.slice();
-    S.log.push(m.name+' จ่ายสินบน '+res.paid+' เหรียญให้ '+sh.name+' — ถุงผ่านโดยไม่เปิด');
+    S.log.push(m.name+' จ่ายสินบน '+describeGave(gave)+' ให้ '+sh.name+' — ถุงผ่านโดยไม่เปิด');
   }else if(mode==='pass'){
     res.kept=bag.cards.slice();
     S.log.push(sh.name+' ปล่อยถุงของ '+m.name+' ผ่านโดยไม่เปิด');
@@ -175,13 +210,13 @@ function resolve(S,mode){
   }
   res.kept.forEach(function(c){m.stall[c.t]++;});
   delete S.bags[mi];
-  S.offer=0;S.bounty={};
+  S.offer=0;S.offerItems={hand:[],stall:{}};S.bounty={};
   S.last=res;S.phase='result';
   return res;
 }
 function nextAfterResult(S){
   if(S.phase!=='result')return false;
-  S.inspIdx++;S.last=null;S.offer=0;S.bounty={};
+  S.inspIdx++;S.last=null;S.offer=0;S.offerItems={hand:[],stall:{}};S.bounty={};
   S.phase=S.inspIdx>=S.merchants.length?'roundEnd':'inspect';
   return true;
 }
@@ -232,7 +267,7 @@ function score(S){
   return {rows:rows,kq:kq};
 }
 
-return {GOODS:GOODS,ALL:ALL,LEGAL:LEGAL,HAND:HAND,BAG_MAX:BAG_MAX,DISCARD_MAX:DISCARD_MAX,
+return {describeGave:describeGave,GOODS:GOODS,ALL:ALL,LEGAL:LEGAL,HAND:HAND,BAG_MAX:BAG_MAX,DISCARD_MAX:DISCARD_MAX,
   newGame:newGame,drawCard:drawCard,discardCards:discardCards,toLoad:toLoad,loadBag:loadBag,
   setOffer:setOffer,setBounty:setBounty,resolve:resolve,nextAfterResult:nextAfterResult,startNextRound:startNextRound,score:score};
 });

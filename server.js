@@ -141,7 +141,15 @@ function viewFor(room,seat){
   v.players=S.players.map(function(p,i){
     return {name:p.name,coins:p.coins,stall:p.stall,handN:p.hand.length,online:!!room.members[i].conn,hand:i===seat?p.hand:undefined};
   });
-  v.prep=S.prep;v.inspIdx=S.inspIdx;v.offer=S.offer;v.bounty=S.bounty;v.log=S.log;v.last=S.last;
+  v.prep=S.prep;v.inspIdx=S.inspIdx;v.offer=S.offer;v.bounty=S.bounty;
+  v.offerItems={hand:[],stall:{}};
+  if(S.phase==='inspect'){
+    const mh=S.players[S.merchants[S.inspIdx]].hand;
+    v.offerItems={
+      hand:S.offerItems.hand.map(function(id){const c=mh.find(function(x){return x.id===id;});return {id:id,t:c?c.t:null};}).filter(function(x){return x.t;}),
+      stall:S.offerItems.stall
+    };
+  }v.log=S.log;v.last=S.last;
   if(S.phase==='inspect'){
     const mi=S.merchants[S.inspIdx],b=S.bags[mi];
     v.insp={mi:mi,declared:b.declared,n:b.cards.length};
@@ -244,7 +252,7 @@ function handle(conn,m){
   switch(m.t){
     case 'settings':
       if(!isHost||room.phase!=='lobby')return;
-      room.rounds=Math.max(1,Math.min(3,parseInt(m.rounds,10)||2));
+      room.rounds=Math.max(1,Math.min(50,parseInt(m.rounds,10)||1));
       broadcast(room);return;
     case 'kick':{
       if(!isHost||room.phase!=='lobby')return;
@@ -296,7 +304,7 @@ function game(room,me,isHost,m){
     else if(a==='seal')changed=E.loadBag(S,me,toIds(m.ids),String(m.declared));
   }else if(S.phase==='inspect'){
     if(a==='bounty')changed=E.setBounty(S,me,m.amount);
-    else if(me===S.merchants[S.inspIdx]&&a==='offer')changed=E.setOffer(S,m.amount);
+    else if(me===S.merchants[S.inspIdx]&&a==='offer')changed=E.setOffer(S,m.amount,toIds(m.hand),m.stall);
     else if(me===S.sheriff){
       if(a==='accept')changed=!!E.resolve(S,'bribe');
       else if(a==='pass')changed=!!E.resolve(S,'pass');

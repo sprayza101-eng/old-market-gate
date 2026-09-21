@@ -202,6 +202,9 @@ th{color:var(--dim);font-weight:500}
 .chatform input{flex:1;min-height:44px;padding:6px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)}
 .chatform .btn{min-height:44px}
 [hidden]{display:none!important}
+.strow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+.stp{display:flex;align-items:center;gap:12px}
+.step.sm3{width:38px;height:38px;font-size:18px}
 .sm2{min-height:34px;padding:2px 12px;font-size:14px}
 .plist li .btn,.plist li .pair{margin-left:auto}
 .plist li .pair{display:flex;gap:6px}
@@ -234,7 +237,7 @@ function ssSet(k,v){try{if(v==null)sessionStorage.removeItem(k);else sessionStor
 
 var qs='';try{qs=new URLSearchParams(location.search).get('room')||'';}catch(e){}
 var ui={online:false,name:lsGet('omg-name')||'',code:qs.toUpperCase().slice(0,6),error:'',toast:'',
-  sel:new Set(),declared:null,offer:0,bounty:0,offerKey:'',rules:false,kickAsk:-1,confirmEnd:false};
+  sel:new Set(),declared:null,offer:0,offerHand:new Set(),offerStall:{},bounty:0,offerKey:'',rules:false,kickAsk:-1,confirmEnd:false};
 var V=null,ws=null,retry=0,chatLog=[],session=null;
 try{var raw=ssGet('omg-session');session=raw?JSON.parse(raw):null;}catch(e){session=null;}
 
@@ -282,8 +285,8 @@ function onMsg(m){
       var st=V.prep&&V.prep[V.me];
       if(V.gphase!=='prep'||(st&&st.step==='done')){ui.sel=new Set();ui.declared=null;}
       var key=V.roundNo+':'+V.inspIdx;
-      if(ui.offerKey!==key){ui.offerKey=key;ui.offer=V.offer||0;ui.bounty=(V.bounty&&V.bounty[V.me])||0;}
-      else if(V.gphase==='inspect'&&V.me!==V.merchants[V.inspIdx])ui.offer=V.offer||0;
+      if(ui.offerKey!==key){ui.offerKey=key;ui.offer=V.offer||0;syncOfferItems();ui.bounty=(V.bounty&&V.bounty[V.me])||0;}
+      else if(V.gphase==='inspect'&&V.me!==V.merchants[V.inspIdx]){ui.offer=V.offer||0;syncOfferItems();}
     }
     renderAll();
   }else if(m.t==='chat'){
@@ -299,6 +302,23 @@ function onMsg(m){
     session=null;ssSet('omg-session',null);V=null;chatLog=[];renderAll();
   }
 }
+function syncOfferItems(){
+  var it=V.offerItems||{hand:[],stall:{}};
+  ui.offerHand=new Set(it.hand.map(function(c){return c.id;}));
+  ui.offerStall={};for(var k in it.stall)ui.offerStall[k]=it.stall[k];
+}
+function giveText(g){
+  var parts=[];
+  if(g.coins>0)parts.push(g.coins+' เหรียญ');
+  var st=Object.keys(g.stall||{}).filter(function(t){return g.stall[t]>0;}).map(function(t){return G(t).emoji+'×'+g.stall[t];});
+  if(st.length)parts.push('สินค้าจากแผง '+st.join(' '));
+  if(g.hand&&g.hand.length)parts.push('ไพ่จากมือ '+g.hand.map(function(c){return G(c.t).emoji;}).join(''));
+  return parts.join(' + ');
+}
+function offerNow(){
+  var it=V.offerItems||{hand:[],stall:{}};
+  return giveText({coins:V.offer||0,hand:it.hand,stall:it.stall});
+}
 function act(a,x){var o={t:'act',a:a};if(x)for(var k in x)o[k]=x[k];send(o);}
 
 /* ---------- ส่วนประกอบภาพ ---------- */
@@ -313,9 +333,9 @@ function sackSVG(){
 function emblem(){
   return '<svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path d="M3 4h20v8c0 6-5 9-10 11C8 21 3 18 3 12Z" fill="var(--gold)" stroke="var(--goldink)" stroke-width="1.5"/><path d="M8 9h10M8 13h10" stroke="var(--goldink)" stroke-width="1.5" stroke-linecap="round"/></svg>';
 }
-function cardBtn(c,sel){
+function cardBtn(c,sel,actName){
   var g=G(c.t);
-  return '<button class="card '+(g.legal?'legal':'contra')+(sel?' sel':'')+'" data-act="toggle" data-id="'+c.id+'" aria-pressed="'+sel+'"><span class="em">'+g.emoji+'</span><span class="nm">'+g.name+'</span>'+(g.legal?'':'<span class="tag contra">เถื่อน</span>')+'</button>';
+  return '<button class="card '+(g.legal?'legal':'contra')+(sel?' sel':'')+'" data-act="'+(actName||'toggle')+'" data-id="'+c.id+'" aria-pressed="'+sel+'"><span class="em">'+g.emoji+'</span><span class="nm">'+g.name+'</span>'+(g.legal?'':'<span class="tag contra">เถื่อน</span>')+'</button>';
 }
 
 /* ---------- ส่วนหัว/แถบ ---------- */
@@ -373,9 +393,9 @@ function lobbyView(){
     '<div><input class="linkbox" readonly value="'+esc(link)+'" aria-label="ลิงก์เชิญ"><button class="btn block" style="margin-top:8px" data-act="copyLink">คัดลอกลิงก์เชิญ</button></div>'+
     '<div><h3 class="lb">ผู้เล่น '+V.members.length+' คน</h3><ul class="plist">'+list+'</ul></div>';
   if(isHost){
-    out+='<div><h3 class="lb">เป็นนายด่านคนละกี่รอบ</h3><div class="seg" style="margin-top:8px">'+
-      [1,2,3].map(function(k){return '<button data-act="rounds" data-v="'+k+'" aria-pressed="'+(V.rounds===k)+'">'+k+' รอบ</button>';}).join('')+'</div>'+
-      '<p class="dim sm" style="margin-top:6px">รวม '+(V.members.length*V.rounds)+' รอบ · ประมาณ '+Math.round(V.members.length*V.rounds*3)+' นาที · สนุกสุดตั้งแต่ 4 คนขึ้นไป</p></div>'+
+    out+='<div><h3 class="lb">เป็นนายด่านคนละกี่รอบ</h3>'+
+      '<div class="bribe" style="margin-top:8px"><button class="step" data-act="roundsAdj" data-d="-1" aria-label="ลดจำนวนรอบ">−</button><input id="roundsIn" type="number" inputmode="numeric" min="1" max="50" value="'+V.rounds+'" aria-label="จำนวนรอบต่อคน"><button class="step" data-act="roundsAdj" data-d="1" aria-label="เพิ่มจำนวนรอบ">+</button></div>'+
+      '<p class="dim sm center" style="margin-top:6px">รวม '+(V.members.length*V.rounds)+' รอบ · ประมาณ '+Math.round(V.members.length*V.rounds*3)+' นาที · ตั้งได้ 1–50 รอบต่อคน</p></div>'+
       '<button class="btn primary block" data-act="start"'+(V.members.length<2?' disabled':'')+'>เริ่มเกม</button>';
   }else{
     out+='<p class="lead center">รอโฮสต์กดเริ่มเกม…</p>';
@@ -456,20 +476,30 @@ function inspectView(){
   var iAmSheriff=V.me===V.sheriff,iAmMerchant=V.me===i.mi;
   var head='<p class="dim sm">พ่อค้าคนที่ '+(V.inspIdx+1)+' จาก '+V.merchants.length+'</p>'+
     '<div class="sackwrap">'+sackSVG()+'<p class="dim">ถุงของ <b>'+esc(m.name)+'</b></p><p class="declared">ประกาศ: '+i.n+' × '+g.emoji+' '+g.name+'</p></div>';
-  var offerLine='<p class="center">สินบนที่เสนอ: <b>'+(V.offer>0?V.offer+' เหรียญ':'ยังไม่มี')+'</b></p>'+bountyInfo();
+  var nowOffer=offerNow();
+  var offerLine='<p class="center">สินบนที่เสนอ: <b>'+(nowOffer||'ยังไม่มี')+'</b></p>'+bountyInfo();
   var bt=bountyTotal();
   if(iAmSheriff){
     return '<section class="stage">'+head+offerLine+
       '<p class="lead center">คุยต่อรองกับ '+esc(m.name)+' ในแชต แล้วตัดสินใจ</p>'+
-      '<div class="btns"><button class="btn primary block" data-act="accept"'+(V.offer>=1?'':' disabled')+'>รับสินบน '+V.offer+' เหรียญ (ปล่อยผ่านโดยไม่เปิด)</button>'+
+      '<div class="btns"><button class="btn primary block" data-act="accept"'+(nowOffer?'':' disabled')+'>'+(nowOffer?'รับสินบน: '+nowOffer+' (ปล่อยผ่านโดยไม่เปิด)':'รับสินบน (ยังไม่มีข้อเสนอ)')+'</button>'+
       '<div class="btns two"><button class="btn" data-act="pass">ปล่อยผ่าน</button><button class="btn danger" data-act="inspect">เปิดถุงตรวจ'+(bt?' (+'+bt+')':'')+'</button></div></div>'+
       '<p class="dim sm center">ถ้าเปิดแล้วพ่อค้าพูดจริง คุณต้องจ่ายค่าปรับ '+(g.pen*i.n)+' เหรียญให้ '+esc(m.name)+(bt?' · ผู้เสนอเงินจะจ่ายให้คุณ '+bt+' เหรียญก็ต่อเมื่อคุณเปิดถุงนี้':'')+'</p></section>';
   }
   if(iAmMerchant){
+    var stallRows=ALL.filter(function(t){return m.stall[t]>0;}).map(function(t){
+      var n=ui.offerStall[t]||0;
+      return '<div class="strow"><span>'+G(t).emoji+' '+G(t).name+' <span class="dim">(มี '+m.stall[t]+')</span></span><span class="stp"><button class="step sm3" data-act="stallAdj" data-t="'+t+'" data-d="-1" aria-label="ลด '+G(t).name+'">−</button><b>'+n+'</b><button class="step sm3" data-act="stallAdj" data-t="'+t+'" data-d="1" aria-label="เพิ่ม '+G(t).name+'">+</button></span></div>';
+    }).join('');
+    var myHand=sortHand(V.players[V.me].hand);
+    var handCards=myHand.map(function(c){return cardBtn(c,ui.offerHand.has(c.id),'offerCard');}).join('');
+    var pending=ui.offer>0||ui.offerHand.size>0||Object.keys(ui.offerStall).some(function(t){return ui.offerStall[t]>0;});
     return '<section class="stage">'+head+bagSummary(V.myBag)+offerLine+
-      '<p class="lead center">เสนอสินบนให้ '+esc(sh.name)+' (คุณมี '+m.coins+' เหรียญ) หรือคุยหว่านล้อมในแชต</p>'+
-      '<div class="bribe"><button class="step" data-act="offerAdj" data-d="-1" aria-label="ลดสินบน">−</button><input id="offerIn" type="number" inputmode="numeric" min="0" max="'+m.coins+'" value="'+ui.offer+'" aria-label="จำนวนสินบน"><button class="step" data-act="offerAdj" data-d="1" aria-label="เพิ่มสินบน">+</button></div>'+
-      '<div class="btns two"><button class="btn primary" data-act="offerSend">เสนอสินบน</button><button class="btn" data-act="offerClear"'+(V.offer>0?'':' disabled')+'>ถอนข้อเสนอ</button></div></section>';
+      '<p class="lead center">เสนอสินบนให้ '+esc(sh.name)+' จะเป็นเหรียญ สินค้าจากแผง หรือไพ่จากมือก็ได้ หรือคุยหว่านล้อมในแชต</p>'+
+      '<div><h3 class="lb">เหรียญ (คุณมี '+m.coins+')</h3><div class="bribe" style="margin-top:8px"><button class="step" data-act="offerAdj" data-d="-1" aria-label="ลดสินบน">−</button><input id="offerIn" type="number" inputmode="numeric" min="0" max="'+m.coins+'" value="'+ui.offer+'" aria-label="จำนวนสินบน"><button class="step" data-act="offerAdj" data-d="1" aria-label="เพิ่มสินบน">+</button></div></div>'+
+      (stallRows?'<div><h3 class="lb">สินค้าจากแผงของคุณ</h3><div style="margin-top:6px">'+stallRows+'</div></div>':'')+
+      (myHand.length?'<div><h3 class="lb">ไพ่จากมือ (แตะเพื่อเลือก)</h3><p class="dim sm">ไพ่ที่เสนอจะถูกเปิดให้ทุกคนเห็น</p><div class="hand" style="margin-top:8px">'+handCards+'</div></div>':'')+
+      '<div class="btns two"><button class="btn primary" data-act="offerSend"'+(pending?'':' disabled')+'>ส่งข้อเสนอ</button><button class="btn" data-act="offerClear"'+(nowOffer?'':' disabled')+'>ถอนข้อเสนอ</button></div></section>';
   }
   var mine=(V.bounty&&V.bounty[V.me])||0,my=V.players[V.me].coins;
   return '<section class="stage">'+head+offerLine+
@@ -482,7 +512,7 @@ function inspectView(){
 function resultView(){
   var r=V.last,m=V.players[r.merchant],sh=V.players[V.sheriff],g=G(r.declared);
   var title,sub;
-  if(r.mode==='bribe'){title='รับสินบน';sub=esc(sh.name)+' รับ '+r.paid+' เหรียญจาก '+esc(m.name)+' แล้วปล่อยถุงผ่านโดยไม่เปิด';}
+  if(r.mode==='bribe'){title='รับสินบน';sub=esc(sh.name)+' รับสินบน '+giveText(r.gave)+' จาก '+esc(m.name)+' แล้วปล่อยถุงผ่านโดยไม่เปิด';}
   else if(r.mode==='pass'){title='ปล่อยผ่าน';sub=esc(sh.name)+' ไม่เปิดถุงของ '+esc(m.name);}
   else if(r.honest){title='พูดจริง!';sub='ของในถุงตรงตามประกาศ '+esc(sh.name)+' จ่ายค่าปรับ '+r.paid+' เหรียญให้ '+esc(m.name)+(r.paid<r.due?' (จ่ายได้เท่าที่มี)':'');}
   else{title='จับได้!';sub=esc(m.name)+' โกหก — ยึด '+r.seized.length+' ใบ และจ่ายค่าปรับ '+r.paid+' เหรียญให้ '+esc(sh.name)+(r.paid<r.due?' (จ่ายได้เท่าที่มี)':'');}
@@ -542,7 +572,7 @@ function rulesView(){
     '<h3 class="lb">นายด่าน</h3>'+
     '<ul><li>ต่อรองกับพ่อค้าในแชต พ่อค้าเสนอสินบน (เหรียญ) ผ่านปุ่มในเกมได้</li>'+
     '<li>ผู้เล่นคนอื่นเสนอเงินให้นายด่านเปิดถุงที่กำลังตรวจได้ จ่ายจริงก็ต่อเมื่อนายด่านเปิดถุงนั้น (ถ้ารับสินบนหรือปล่อยผ่าน ไม่ต้องจ่าย)</li>'+
-    '<li><b>รับสินบน</b> แล้วต้องปล่อยถุงนั้นผ่านโดยไม่เปิด</li>'+
+    '<li><b>รับสินบน</b> แล้วต้องปล่อยถุงนั้นผ่านโดยไม่เปิด พ่อค้าเสนอสินบนเป็นเหรียญ สินค้าจากแผง หรือไพ่จากมือก็ได้ (รวมกันได้) ของที่รับไปเข้าแผงของนายด่าน</li>'+
     '<li><b>ปล่อยผ่าน</b> โดยไม่เปิด</li>'+
     '<li><b>เปิดตรวจ</b> — ถ้าพ่อค้าพูดจริง นายด่านจ่ายค่าปรับ (ต่อใบ) ให้พ่อค้า ถ้าโกหก ใบที่ไม่ตรงประกาศถูกยึด พ่อค้าจ่ายค่าปรับของใบเหล่านั้นให้นายด่าน ส่วนใบที่ตรงประกาศผ่านเข้าแผง</li></ul>'+
     '<p>ของที่ผ่านด่านจะหงายขึ้นเข้าแผงของพ่อค้า (รวมของเถื่อนด้วย)</p>'+
@@ -596,7 +626,7 @@ function onAct(a,d){
       catch(e){flashToast('คัดลอกไม่ได้ ให้กดค้างที่ช่องลิงก์แล้วคัดลอกเอง');}
       return;
     }
-    case 'rounds':send({t:'settings',rounds:+d.v});return;
+    case 'roundsAdj':send({t:'settings',rounds:Math.max(1,Math.min(50,V.rounds+(+d.d)))});return;
     case 'start':send({t:'start'});return;
     case 'leave':send({t:'leave'});session=null;ssSet('omg-session',null);V=null;chatLog=[];renderAll();return;
     case 'rules':ui.rules=true;renderOv();return;
@@ -634,8 +664,19 @@ function onAct(a,d){
     }
     case 'bountySend':act('bounty',{amount:ui.bounty});return;
     case 'bountyClear':ui.bounty=0;act('bounty',{amount:0});return;
-    case 'offerSend':act('offer',{amount:ui.offer});return;
-    case 'offerClear':ui.offer=0;act('offer',{amount:0});return;
+    case 'offerCard':{
+      var oid=+d.id;
+      if(ui.offerHand.has(oid))ui.offerHand.delete(oid);else ui.offerHand.add(oid);
+      renderView();return;
+    }
+    case 'stallAdj':{
+      var me0=V.players[V.me],tt=d.t;
+      var cur=ui.offerStall[tt]||0,nx=Math.max(0,Math.min(me0.stall[tt],cur+(+d.d)));
+      if(nx>0)ui.offerStall[tt]=nx;else delete ui.offerStall[tt];
+      renderView();return;
+    }
+    case 'offerSend':act('offer',{amount:ui.offer,hand:Array.from(ui.offerHand),stall:ui.offerStall});return;
+    case 'offerClear':ui.offer=0;ui.offerHand=new Set();ui.offerStall={};act('offer',{amount:0,hand:[],stall:{}});return;
     case 'accept':case 'pass':case 'inspect':case 'next':case 'nextRound':case 'again':act(a);toTop();return;
   }
 }
@@ -667,6 +708,13 @@ function sendChat(){
 }
 $('chatsend').addEventListener('click',sendChat);
 elInp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();sendChat();}});
+document.addEventListener('change',function(e){
+  var t=e.target;
+  if(t.id==='roundsIn'&&V){
+    var v=parseInt(t.value,10);if(isNaN(v)||v<1)v=1;if(v>50)v=50;
+    t.value=v;send({t:'settings',rounds:v});
+  }
+});
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.rules){ui.rules=false;renderOv();}});
 
 renderAll();
