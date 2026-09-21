@@ -141,7 +141,7 @@ function viewFor(room,seat){
   v.players=S.players.map(function(p,i){
     return {name:p.name,coins:p.coins,stall:p.stall,handN:p.hand.length,online:!!room.members[i].conn,hand:i===seat?p.hand:undefined};
   });
-  v.prep=S.prep;v.inspIdx=S.inspIdx;v.offer=S.offer;v.log=S.log;v.last=S.last;
+  v.prep=S.prep;v.inspIdx=S.inspIdx;v.offer=S.offer;v.bounty=S.bounty;v.log=S.log;v.last=S.last;
   if(S.phase==='inspect'){
     const mi=S.merchants[S.inspIdx],b=S.bags[mi];
     v.insp={mi:mi,declared:b.declared,n:b.cards.length};
@@ -246,6 +246,17 @@ function handle(conn,m){
       if(!isHost||room.phase!=='lobby')return;
       room.rounds=Math.max(1,Math.min(3,parseInt(m.rounds,10)||2));
       broadcast(room);return;
+    case 'kick':{
+      if(!isHost||room.phase!=='lobby')return;
+      const ti=parseInt(m.seat,10);
+      if(!(ti>=0&&ti<room.members.length)||ti===seat)return;
+      const target=room.members[ti];
+      if(target.conn){const tc=target.conn;tc.send({t:'kicked'});detachOnly(tc);}
+      removeMember(room,target);return;
+    }
+    case 'endgame':
+      if(!isHost||room.phase!=='game')return;
+      room.phase='lobby';room.S=null;broadcast(room);return;
     case 'start':
       if(!isHost||room.phase!=='lobby')return;
       if(room.members.length<2)return err(conn,'ต้องมีผู้เล่นอย่างน้อย 2 คน');
@@ -284,7 +295,8 @@ function game(room,me,isHost,m){
     else if(a==='toLoad')changed=E.toLoad(S,me);
     else if(a==='seal')changed=E.loadBag(S,me,toIds(m.ids),String(m.declared));
   }else if(S.phase==='inspect'){
-    if(me===S.merchants[S.inspIdx]&&a==='offer')changed=E.setOffer(S,m.amount);
+    if(a==='bounty')changed=E.setBounty(S,me,m.amount);
+    else if(me===S.merchants[S.inspIdx]&&a==='offer')changed=E.setOffer(S,m.amount);
     else if(me===S.sheriff){
       if(a==='accept')changed=!!E.resolve(S,'bribe');
       else if(a==='pass')changed=!!E.resolve(S,'pass');

@@ -31,7 +31,7 @@ function newGame(names,rounds,rnd){
     players:names.map(function(n){return {name:n,coins:START_COINS,hand:[],stall:emptyStall()};}),
     deck:[],piles:[[],[]],
     rounds:rounds,totalRounds:names.length*rounds,roundNo:0,sheriff:0,
-    merchants:[],prep:{},bags:{},inspIdx:0,offer:0,last:null,phase:'prep',log:[]
+    merchants:[],prep:{},bags:{},inspIdx:0,offer:0,bounty:{},last:null,phase:'prep',log:[]
   };
   const scale=Math.max(1,Math.ceil(names.length/5));
   ALL.forEach(function(t){for(let i=0;i<DECK_COUNTS[t]*scale;i++)S.deck.push({id:S.nextId++,t:t});});
@@ -47,7 +47,7 @@ function beginRound(S){
   for(let i=1;i<n;i++)S.merchants.push((S.sheriff+i)%n);
   S.prep={};
   S.merchants.forEach(function(mi){S.prep[mi]={step:'market',discarded:0};});
-  S.bags={};S.inspIdx=0;S.offer=0;S.last=null;S.log=[];S.phase='prep';
+  S.bags={};S.inspIdx=0;S.offer=0;S.bounty={};S.last=null;S.log=[];S.phase='prep';
 }
 function canReshuffle(S){return S.piles.some(function(p){return p.length>1;});}
 function reshuffle(S,rnd){
@@ -109,7 +109,7 @@ function loadBag(S,pi,ids,declared){
   S.bags[pi]={cards:cards,declared:declared};
   pr.step='done';
   if(S.merchants.every(function(mi){return S.prep[mi].step==='done';})){
-    S.phase='inspect';S.inspIdx=0;S.offer=0;
+    S.phase='inspect';S.inspIdx=0;S.offer=0;S.bounty={};
   }
   return true;
 }
@@ -119,6 +119,16 @@ function setOffer(S,amount){
   let a=Math.floor(Number(amount));
   if(!isFinite(a)||a<0)a=0;
   S.offer=Math.min(a,m.coins);
+  return true;
+}
+function setBounty(S,pi,amount){
+  // ผู้เล่นอื่น (ไม่ใช่นายด่าน/เจ้าของถุง) เสนอเงินให้นายด่านเปิดถุงที่กำลังตรวจ — จ่ายจริงเมื่อนายด่านเปิดถุงเท่านั้น
+  if(S.phase!=='inspect'||!S.players[pi])return false;
+  if(pi===S.sheriff||pi===S.merchants[S.inspIdx])return false;
+  let a=Math.floor(Number(amount));
+  if(!isFinite(a)||a<0)a=0;
+  a=Math.min(a,S.players[pi].coins);
+  if(a<1)delete S.bounty[pi];else S.bounty[pi]=a;
   return true;
 }
 function pay(from,to,amt){
@@ -131,7 +141,7 @@ function resolve(S,mode){
   const m=S.players[mi],sh=S.players[S.sheriff],bag=S.bags[mi];
   if(mode==='bribe'&&S.offer<1)return null;
   const truth=bag.cards.every(function(c){return c.t===bag.declared;});
-  const res={merchant:mi,declared:bag.declared,cards:bag.cards.slice(),mode:mode,truth:truth,paid:0,due:0,honest:null,kept:[],seized:[]};
+  const res={merchant:mi,declared:bag.declared,cards:bag.cards.slice(),mode:mode,truth:truth,paid:0,due:0,honest:null,kept:[],seized:[],bounty:[]};
   if(mode==='bribe'){
     res.due=Math.min(S.offer,m.coins);
     res.paid=pay(m,sh,res.due);
@@ -141,6 +151,12 @@ function resolve(S,mode){
     res.kept=bag.cards.slice();
     S.log.push(sh.name+' ปล่อยถุงของ '+m.name+' ผ่านโดยไม่เปิด');
   }else{
+    let tot=0;const who=[];
+    Object.keys(S.bounty).forEach(function(k){
+      const pi=Number(k),pd=pay(S.players[pi],sh,S.bounty[k]);
+      if(pd>0){res.bounty.push({seat:pi,paid:pd});tot+=pd;who.push(S.players[pi].name);}
+    });
+    if(tot>0)S.log.push(who.join(', ')+' จ่ายเงินรวม '+tot+' เหรียญให้ '+sh.name+' เพื่อให้เปิดถุงของ '+m.name);
     const kept=[],seized=[];
     bag.cards.forEach(function(c){(c.t===bag.declared?kept:seized).push(c);});
     if(!seized.length){
@@ -159,13 +175,13 @@ function resolve(S,mode){
   }
   res.kept.forEach(function(c){m.stall[c.t]++;});
   delete S.bags[mi];
-  S.offer=0;
+  S.offer=0;S.bounty={};
   S.last=res;S.phase='result';
   return res;
 }
 function nextAfterResult(S){
   if(S.phase!=='result')return false;
-  S.inspIdx++;S.last=null;S.offer=0;
+  S.inspIdx++;S.last=null;S.offer=0;S.bounty={};
   S.phase=S.inspIdx>=S.merchants.length?'roundEnd':'inspect';
   return true;
 }
@@ -218,5 +234,5 @@ function score(S){
 
 return {GOODS:GOODS,ALL:ALL,LEGAL:LEGAL,HAND:HAND,BAG_MAX:BAG_MAX,DISCARD_MAX:DISCARD_MAX,
   newGame:newGame,drawCard:drawCard,discardCards:discardCards,toLoad:toLoad,loadBag:loadBag,
-  setOffer:setOffer,resolve:resolve,nextAfterResult:nextAfterResult,startNextRound:startNextRound,score:score};
+  setOffer:setOffer,setBounty:setBounty,resolve:resolve,nextAfterResult:nextAfterResult,startNextRound:startNextRound,score:score};
 });
