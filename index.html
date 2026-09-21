@@ -237,7 +237,7 @@ function ssSet(k,v){try{if(v==null)sessionStorage.removeItem(k);else sessionStor
 
 var qs='';try{qs=new URLSearchParams(location.search).get('room')||'';}catch(e){}
 var ui={online:false,name:lsGet('omg-name')||'',code:qs.toUpperCase().slice(0,6),error:'',toast:'',
-  sel:new Set(),declared:null,offer:0,offerHand:new Set(),offerStall:{},bounty:0,offerKey:'',rules:false,kickAsk:-1,confirmEnd:false};
+  sel:new Set(),declared:null,offer:0,offerHand:new Set(),offerStall:{},bounty:0,bountyHand:new Set(),bountyStall:{},offerKey:'',rules:false,kickAsk:-1,confirmEnd:false};
 var V=null,ws=null,retry=0,chatLog=[],session=null;
 try{var raw=ssGet('omg-session');session=raw?JSON.parse(raw):null;}catch(e){session=null;}
 
@@ -285,7 +285,7 @@ function onMsg(m){
       var st=V.prep&&V.prep[V.me];
       if(V.gphase!=='prep'||(st&&st.step==='done')){ui.sel=new Set();ui.declared=null;}
       var key=V.roundNo+':'+V.inspIdx;
-      if(ui.offerKey!==key){ui.offerKey=key;ui.offer=V.offer||0;syncOfferItems();ui.bounty=(V.bounty&&V.bounty[V.me])||0;}
+      if(ui.offerKey!==key){ui.offerKey=key;ui.offer=V.offer||0;syncOfferItems();syncBountyItems();}
       else if(V.gphase==='inspect'&&V.me!==V.merchants[V.inspIdx]){ui.offer=V.offer||0;syncOfferItems();}
     }
     renderAll();
@@ -306,6 +306,12 @@ function syncOfferItems(){
   var it=V.offerItems||{hand:[],stall:{}};
   ui.offerHand=new Set(it.hand.map(function(c){return c.id;}));
   ui.offerStall={};for(var k in it.stall)ui.offerStall[k]=it.stall[k];
+}
+function syncBountyItems(){
+  var b=(V.bounty&&V.bounty[V.me])||{coins:0,hand:[],stall:{}};
+  ui.bounty=b.coins||0;
+  ui.bountyHand=new Set((b.hand||[]).map(function(c){return c.id;}));
+  ui.bountyStall={};for(var k in (b.stall||{}))ui.bountyStall[k]=b.stall[k];
 }
 function giveText(g){
   var parts=[];
@@ -463,50 +469,53 @@ function prepView(){
   if(st==='load')return loadView();
   return '<section class="stage"><h2>ปิดถุงแล้ว</h2>'+bagSummary(V.myBag)+'<p class="lead">รอเพื่อนคนอื่นจัดถุงให้เสร็จ</p>'+statusList()+'</section>';
 }
-function bountyInfo(){
-  var ks=Object.keys(V.bounty||{});
-  if(!ks.length)return '';
-  var tot=0;
-  var names=ks.map(function(k){tot+=V.bounty[k];return esc(V.players[+k].name)+' '+V.bounty[k];}).join(', ');
-  return '<p class="center">เงินเสนอให้เปิดถุง: <b>'+names+'</b> (รวม '+tot+' เหรียญ)</p>';
+function bountyEntries(){
+  return Object.keys(V.bounty||{}).map(function(k){return {seat:+k,g:V.bounty[k]};});
 }
-function bountyTotal(){var t=0;Object.keys(V.bounty||{}).forEach(function(k){t+=V.bounty[k];});return t;}
+function bountyInfo(){
+  var es=bountyEntries();
+  if(!es.length)return '';
+  return '<div class="note t"><b>ผู้เล่นอื่นเสนอให้เปิดถุงนี้</b><br>'+es.map(function(e){return esc(V.players[e.seat].name)+': '+giveText(e.g);}).join('<br>')+'</div>';
+}
+function giftBuilder(o){
+  var stallRows=ALL.filter(function(t){return o.p.stall[t]>0;}).map(function(t){
+    var n=o.stallSel[t]||0;
+    return '<div class="strow"><span>'+G(t).emoji+' '+G(t).name+' <span class="dim">(มี '+o.p.stall[t]+')</span></span><span class="stp"><button class="step sm3" data-act="'+o.acts.stall+'" data-t="'+t+'" data-d="-1" aria-label="ลด '+G(t).name+'">−</button><b>'+n+'</b><button class="step sm3" data-act="'+o.acts.stall+'" data-t="'+t+'" data-d="1" aria-label="เพิ่ม '+G(t).name+'">+</button></span></div>';
+  }).join('');
+  var hand=sortHand(o.hand);
+  var handCards=hand.map(function(c){return cardBtn(c,o.handSel.has(c.id),o.acts.card);}).join('');
+  var pending=o.coins>0||o.handSel.size>0||Object.keys(o.stallSel).some(function(t){return o.stallSel[t]>0;});
+  return '<div><h3 class="lb">เหรียญ (คุณมี '+o.p.coins+')</h3><div class="bribe" style="margin-top:8px"><button class="step" data-act="'+o.acts.adj+'" data-d="-1" aria-label="ลดเหรียญ">−</button><input id="'+o.acts.input+'" type="number" inputmode="numeric" min="0" max="'+o.p.coins+'" value="'+o.coins+'" aria-label="จำนวนเหรียญ"><button class="step" data-act="'+o.acts.adj+'" data-d="1" aria-label="เพิ่มเหรียญ">+</button></div></div>'+
+    (stallRows?'<div><h3 class="lb">สินค้าจากแผงของคุณ</h3><div style="margin-top:6px">'+stallRows+'</div></div>':'')+
+    (hand.length?'<div><h3 class="lb">ไพ่จากมือ (แตะเพื่อเลือก)</h3><p class="dim sm">ไพ่ที่เสนอจะถูกเปิดให้ทุกคนเห็น</p><div class="hand" style="margin-top:8px">'+handCards+'</div></div>':'')+
+    '<div class="btns two"><button class="btn primary" data-act="'+o.acts.send+'"'+(pending?'':' disabled')+'>'+o.sendLabel+'</button><button class="btn" data-act="'+o.acts.clear+'"'+(o.hasSent?'':' disabled')+'>ถอนข้อเสนอ</button></div>';
+}
 function inspectView(){
   var i=V.insp,m=V.players[i.mi],sh=V.players[V.sheriff],g=G(i.declared);
   var iAmSheriff=V.me===V.sheriff,iAmMerchant=V.me===i.mi;
   var head='<p class="dim sm">พ่อค้าคนที่ '+(V.inspIdx+1)+' จาก '+V.merchants.length+'</p>'+
     '<div class="sackwrap">'+sackSVG()+'<p class="dim">ถุงของ <b>'+esc(m.name)+'</b></p><p class="declared">ประกาศ: '+i.n+' × '+g.emoji+' '+g.name+'</p></div>';
   var nowOffer=offerNow();
-  var offerLine='<p class="center">สินบนที่เสนอ: <b>'+(nowOffer||'ยังไม่มี')+'</b></p>'+bountyInfo();
-  var bt=bountyTotal();
+  var offerLine='<p class="center">สินบนจากเจ้าของถุง: <b>'+(nowOffer||'ยังไม่มี')+'</b></p>'+bountyInfo();
+  var hasBounty=bountyEntries().length>0;
   if(iAmSheriff){
     return '<section class="stage">'+head+offerLine+
       '<p class="lead center">คุยต่อรองกับ '+esc(m.name)+' ในแชต แล้วตัดสินใจ</p>'+
       '<div class="btns"><button class="btn primary block" data-act="accept"'+(nowOffer?'':' disabled')+'>'+(nowOffer?'รับสินบน: '+nowOffer+' (ปล่อยผ่านโดยไม่เปิด)':'รับสินบน (ยังไม่มีข้อเสนอ)')+'</button>'+
-      '<div class="btns two"><button class="btn" data-act="pass">ปล่อยผ่าน</button><button class="btn danger" data-act="inspect">เปิดถุงตรวจ'+(bt?' (+'+bt+')':'')+'</button></div></div>'+
-      '<p class="dim sm center">ถ้าเปิดแล้วพ่อค้าพูดจริง คุณต้องจ่ายค่าปรับ '+(g.pen*i.n)+' เหรียญให้ '+esc(m.name)+(bt?' · ผู้เสนอเงินจะจ่ายให้คุณ '+bt+' เหรียญก็ต่อเมื่อคุณเปิดถุงนี้':'')+'</p></section>';
+      '<div class="btns two"><button class="btn" data-act="pass">ปล่อยผ่าน</button><button class="btn danger" data-act="inspect">เปิดถุงตรวจ'+(hasBounty?' (+ข้อเสนอ)':'')+'</button></div></div>'+
+      '<p class="dim sm center">ถ้าเปิดแล้วพ่อค้าพูดจริง คุณต้องจ่ายค่าปรับ '+(g.pen*i.n)+' เหรียญให้ '+esc(m.name)+(hasBounty?' · ผู้เสนอจะมอบของให้คุณก็ต่อเมื่อคุณเปิดถุงนี้ (รับสินบนจากเจ้าของถุงหรือปล่อยผ่านจะไม่ได้)':'')+'</p></section>';
   }
   if(iAmMerchant){
-    var stallRows=ALL.filter(function(t){return m.stall[t]>0;}).map(function(t){
-      var n=ui.offerStall[t]||0;
-      return '<div class="strow"><span>'+G(t).emoji+' '+G(t).name+' <span class="dim">(มี '+m.stall[t]+')</span></span><span class="stp"><button class="step sm3" data-act="stallAdj" data-t="'+t+'" data-d="-1" aria-label="ลด '+G(t).name+'">−</button><b>'+n+'</b><button class="step sm3" data-act="stallAdj" data-t="'+t+'" data-d="1" aria-label="เพิ่ม '+G(t).name+'">+</button></span></div>';
-    }).join('');
-    var myHand=sortHand(V.players[V.me].hand);
-    var handCards=myHand.map(function(c){return cardBtn(c,ui.offerHand.has(c.id),'offerCard');}).join('');
-    var pending=ui.offer>0||ui.offerHand.size>0||Object.keys(ui.offerStall).some(function(t){return ui.offerStall[t]>0;});
     return '<section class="stage">'+head+bagSummary(V.myBag)+offerLine+
       '<p class="lead center">เสนอสินบนให้ '+esc(sh.name)+' จะเป็นเหรียญ สินค้าจากแผง หรือไพ่จากมือก็ได้ หรือคุยหว่านล้อมในแชต</p>'+
-      '<div><h3 class="lb">เหรียญ (คุณมี '+m.coins+')</h3><div class="bribe" style="margin-top:8px"><button class="step" data-act="offerAdj" data-d="-1" aria-label="ลดสินบน">−</button><input id="offerIn" type="number" inputmode="numeric" min="0" max="'+m.coins+'" value="'+ui.offer+'" aria-label="จำนวนสินบน"><button class="step" data-act="offerAdj" data-d="1" aria-label="เพิ่มสินบน">+</button></div></div>'+
-      (stallRows?'<div><h3 class="lb">สินค้าจากแผงของคุณ</h3><div style="margin-top:6px">'+stallRows+'</div></div>':'')+
-      (myHand.length?'<div><h3 class="lb">ไพ่จากมือ (แตะเพื่อเลือก)</h3><p class="dim sm">ไพ่ที่เสนอจะถูกเปิดให้ทุกคนเห็น</p><div class="hand" style="margin-top:8px">'+handCards+'</div></div>':'')+
-      '<div class="btns two"><button class="btn primary" data-act="offerSend"'+(pending?'':' disabled')+'>ส่งข้อเสนอ</button><button class="btn" data-act="offerClear"'+(nowOffer?'':' disabled')+'>ถอนข้อเสนอ</button></div></section>';
+      giftBuilder({p:m,hand:V.players[V.me].hand,coins:ui.offer,handSel:ui.offerHand,stallSel:ui.offerStall,hasSent:!!nowOffer,sendLabel:'ส่งข้อเสนอ',
+        acts:{adj:'offerAdj',input:'offerIn',stall:'stallAdj',card:'offerCard',send:'offerSend',clear:'offerClear'}})+'</section>';
   }
-  var mine=(V.bounty&&V.bounty[V.me])||0,my=V.players[V.me].coins;
+  var mineE=(V.bounty&&V.bounty[V.me]);
   return '<section class="stage">'+head+offerLine+
-    '<p class="lead center">อยากให้ '+esc(sh.name)+' เปิดถุงนี้? เสนอเงินให้นายด่านได้ (คุณมี '+my+' เหรียญ) จ่ายจริงก็ต่อเมื่อเขาเปิดถุงนี้</p>'+
-    '<div class="bribe"><button class="step" data-act="bountyAdj" data-d="-1" aria-label="ลดเงินเสนอ">−</button><input id="bountyIn" type="number" inputmode="numeric" min="0" max="'+my+'" value="'+ui.bounty+'" aria-label="เงินเสนอให้เปิดถุง"><button class="step" data-act="bountyAdj" data-d="1" aria-label="เพิ่มเงินเสนอ">+</button></div>'+
-    '<div class="btns two"><button class="btn primary" data-act="bountySend">เสนอเงินให้เปิดถุง</button><button class="btn" data-act="bountyClear"'+(mine>0?'':' disabled')+'>ถอนข้อเสนอ</button></div>'+
-    (mine>0?'<p class="dim sm center">ข้อเสนอของคุณตอนนี้: '+mine+' เหรียญ</p>':'')+
+    '<p class="lead center">อยากให้ '+esc(sh.name)+' เปิดถุงนี้? เสนอเหรียญ สินค้าจากแผง หรือไพ่จากมือให้นายด่านได้ จะมอบให้จริงก็ต่อเมื่อเขาเปิดถุงนี้</p>'+
+    giftBuilder({p:V.players[V.me],hand:V.players[V.me].hand,coins:ui.bounty,handSel:ui.bountyHand,stallSel:ui.bountyStall,hasSent:!!mineE,sendLabel:'เสนอให้เปิดถุง',
+      acts:{adj:'bountyAdj',input:'bountyIn',stall:'bStallAdj',card:'bountyCard',send:'bountySend',clear:'bountyClear'}})+
     '<p class="dim sm center">รอ '+esc(sh.name)+' ตัดสินใจ… ฟังการต่อรองในแชตได้</p></section>';
 }
 function resultView(){
@@ -522,7 +531,7 @@ function resultView(){
     return '<div class="face '+(cg.legal?'legal':'contra')+' '+(ok?'ok':'bad')+'" style="animation-delay:'+(i*110)+'ms"><span class="em">'+cg.emoji+'</span><span class="nm">'+cg.name+'</span><span class="tag '+(ok?'good':'seized')+'">'+(ok?'เข้าแผง':'ถูกยึด')+'</span></div>';
   }).join('');
   var truthNote=r.mode==='inspect'?'':'<div class="note '+(r.truth?'t':'f')+'">เฉลยหลังปล่อยผ่าน: '+(r.truth?'ในถุงตรงตามประกาศ':'ในถุงไม่ตรงตามประกาศ')+'</div>';
-  var bnote=(r.bounty&&r.bounty.length)?'<div class="note t">ผู้เสนอเงินให้เปิดถุง: '+r.bounty.map(function(b){return esc(V.players[b.seat].name)+' '+b.paid;}).join(', ')+' — จ่ายให้นายด่านแล้ว</div>':'';
+  var bnote=(r.bounty&&r.bounty.length)?'<div class="note t">ผู้เล่นที่เสนอให้เปิดถุง: '+r.bounty.map(function(b){return esc(V.players[b.seat].name)+' '+giveText(b.gave);}).join(' · ')+' — มอบให้นายด่านแล้ว</div>':'';
   var last=V.inspIdx+1>=V.merchants.length;
   return '<section class="stage"><div class="center"><h2>'+title+'</h2><p class="lead" style="margin-top:6px">'+sub+'</p></div>'+
     '<p class="center dim">ประกาศไว้: '+r.cards.length+' × '+g.emoji+' '+g.name+' · ของจริงในถุง:</p>'+
@@ -571,7 +580,7 @@ function rulesView(){
     '<li>โกหกได้! จะใส่ของเถื่อนหรือสินค้าอื่นปนก็ได้ ประกาศเป็นของเถื่อนไม่ได้</li></ol>'+
     '<h3 class="lb">นายด่าน</h3>'+
     '<ul><li>ต่อรองกับพ่อค้าในแชต พ่อค้าเสนอสินบน (เหรียญ) ผ่านปุ่มในเกมได้</li>'+
-    '<li>ผู้เล่นคนอื่นเสนอเงินให้นายด่านเปิดถุงที่กำลังตรวจได้ จ่ายจริงก็ต่อเมื่อนายด่านเปิดถุงนั้น (ถ้ารับสินบนหรือปล่อยผ่าน ไม่ต้องจ่าย)</li>'+
+    '<li>ผู้เล่นคนอื่น (ที่ไม่ใช่เจ้าของถุง) เสนอเหรียญ สินค้าจากแผง หรือไพ่จากมือให้นายด่านเปิดถุงที่กำลังตรวจได้ มอบให้จริงก็ต่อเมื่อนายด่านเปิดถุงนั้น (ถ้ารับสินบนหรือปล่อยผ่าน ไม่ต้องมอบ)</li>'+
     '<li><b>รับสินบน</b> แล้วต้องปล่อยถุงนั้นผ่านโดยไม่เปิด พ่อค้าเสนอสินบนเป็นเหรียญ สินค้าจากแผง หรือไพ่จากมือก็ได้ (รวมกันได้) ของที่รับไปเข้าแผงของนายด่าน</li>'+
     '<li><b>ปล่อยผ่าน</b> โดยไม่เปิด</li>'+
     '<li><b>เปิดตรวจ</b> — ถ้าพ่อค้าพูดจริง นายด่านจ่ายค่าปรับ (ต่อใบ) ให้พ่อค้า ถ้าโกหก ใบที่ไม่ตรงประกาศถูกยึด พ่อค้าจ่ายค่าปรับของใบเหล่านั้นให้นายด่าน ส่วนใบที่ตรงประกาศผ่านเข้าแผง</li></ul>'+
@@ -662,8 +671,19 @@ function onAct(a,d){
       ui.bounty=Math.max(0,Math.min(bc,ui.bounty+(+d.d)));
       var bi=$('bountyIn');if(bi)bi.value=ui.bounty;return;
     }
-    case 'bountySend':act('bounty',{amount:ui.bounty});return;
-    case 'bountyClear':ui.bounty=0;act('bounty',{amount:0});return;
+    case 'bountyCard':{
+      var bid=+d.id;
+      if(ui.bountyHand.has(bid))ui.bountyHand.delete(bid);else ui.bountyHand.add(bid);
+      renderView();return;
+    }
+    case 'bStallAdj':{
+      var bme=V.players[V.me],bt=d.t;
+      var bcur=ui.bountyStall[bt]||0,bnx=Math.max(0,Math.min(bme.stall[bt],bcur+(+d.d)));
+      if(bnx>0)ui.bountyStall[bt]=bnx;else delete ui.bountyStall[bt];
+      renderView();return;
+    }
+    case 'bountySend':act('bounty',{amount:ui.bounty,hand:Array.from(ui.bountyHand),stall:ui.bountyStall});return;
+    case 'bountyClear':ui.bounty=0;ui.bountyHand=new Set();ui.bountyStall={};act('bounty',{amount:0,hand:[],stall:{}});return;
     case 'offerCard':{
       var oid=+d.id;
       if(ui.offerHand.has(oid))ui.offerHand.delete(oid);else ui.offerHand.add(oid);

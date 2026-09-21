@@ -141,7 +141,7 @@ function viewFor(room,seat){
   v.players=S.players.map(function(p,i){
     return {name:p.name,coins:p.coins,stall:p.stall,handN:p.hand.length,online:!!room.members[i].conn,hand:i===seat?p.hand:undefined};
   });
-  v.prep=S.prep;v.inspIdx=S.inspIdx;v.offer=S.offer;v.bounty=S.bounty;
+  v.prep=S.prep;v.inspIdx=S.inspIdx;v.offer=S.offer;v.bounty={};
   v.offerItems={hand:[],stall:{}};
   if(S.phase==='inspect'){
     const mh=S.players[S.merchants[S.inspIdx]].hand;
@@ -149,6 +149,11 @@ function viewFor(room,seat){
       hand:S.offerItems.hand.map(function(id){const c=mh.find(function(x){return x.id===id;});return {id:id,t:c?c.t:null};}).filter(function(x){return x.t;}),
       stall:S.offerItems.stall
     };
+    Object.keys(S.bounty).forEach(function(k){
+      const g=S.bounty[k],ph=S.players[Number(k)].hand;
+      v.bounty[k]={coins:g.coins,stall:g.stall,
+        hand:g.hand.map(function(id){const c=ph.find(function(x){return x.id===id;});return {id:id,t:c?c.t:null};}).filter(function(x){return x.t;})};
+    });
   }v.log=S.log;v.last=S.last;
   if(S.phase==='inspect'){
     const mi=S.merchants[S.inspIdx],b=S.bags[mi];
@@ -303,7 +308,7 @@ function game(room,me,isHost,m){
     else if(a==='toLoad')changed=E.toLoad(S,me);
     else if(a==='seal')changed=E.loadBag(S,me,toIds(m.ids),String(m.declared));
   }else if(S.phase==='inspect'){
-    if(a==='bounty')changed=E.setBounty(S,me,m.amount);
+    if(a==='bounty')changed=E.setBounty(S,me,m.amount,toIds(m.hand),m.stall);
     else if(me===S.merchants[S.inspIdx]&&a==='offer')changed=E.setOffer(S,m.amount,toIds(m.hand),m.stall);
     else if(me===S.sheriff){
       if(a==='accept')changed=!!E.resolve(S,'bribe');
