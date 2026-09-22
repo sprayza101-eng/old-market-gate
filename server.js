@@ -15,8 +15,6 @@ const STATIC={
   '/index.html':['index.html','text/html; charset=utf-8'],
   '/engine.js':['engine.js','application/javascript; charset=utf-8']
 };
-const GOOD_KEYS=E.ALL; // ชื่อไฟล์ภาพที่อนุญาต: img/<ชนิดสินค้า>.jpg เท่านั้น
-GOOD_KEYS.forEach(function(k){STATIC['/img/'+k+'.jpg']=['img/'+k+'.jpg','image/jpeg'];});
 
 /* ---------- HTTP ---------- */
 const server=http.createServer(function(req,res){
@@ -24,10 +22,9 @@ const server=http.createServer(function(req,res){
   if(u==='/healthz'){res.writeHead(200,{'Content-Type':'text/plain'});res.end('ok');return;}
   const f=STATIC[u];
   if(!f||(req.method!=='GET'&&req.method!=='HEAD')){res.writeHead(404,{'Content-Type':'text/plain'});res.end('Not found');return;}
-  const isImg=u.indexOf('/img/')===0;
   fs.readFile(path.join(__dirname,f[0]),function(err,data){
     if(err){res.writeHead(500,{'Content-Type':'text/plain'});res.end('Server error');return;}
-    res.writeHead(200,{'Content-Type':f[1],'Cache-Control':isImg?'public, max-age=604800, immutable':'no-cache'});
+    res.writeHead(200,{'Content-Type':f[1],'Cache-Control':'no-cache'});
     res.end(req.method==='HEAD'?undefined:data);
   });
 });
