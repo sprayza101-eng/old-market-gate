@@ -192,6 +192,8 @@ th{color:var(--dim);font-weight:500}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--line);flex:0 0 auto}
 .dot.on{background:var(--leaf)}
 .off{font-size:11px;color:var(--wax);font-weight:600}
+.discord{text-decoration:none;display:flex;align-items:center;justify-content:center;background:#5865F2;border-color:#5865F2;color:#fff}
+.discord:hover{opacity:.92}
 .turnbanner{display:flex;align-items:center;justify-content:center}
 .turncard{max-width:340px;margin:0 auto;background:var(--surface);border:2px solid var(--gold);border-radius:20px;padding:30px 24px;box-shadow:var(--shadow);text-align:center}
 .turncard .bell{font-size:48px;line-height:1}
@@ -415,7 +417,8 @@ function landingView(){
     '<button class="btn primary block" data-act="create"'+dis+'>สร้างห้องใหม่</button>'+
     '<p class="center dim sm">หรือเข้าห้องของเพื่อน</p>'+
     '<label class="fld"><span>รหัสห้อง</span><input id="codeIn" maxlength="6" autocapitalize="characters" autocomplete="off" value="'+esc(ui.code)+'" placeholder="เช่น K7M2Q"></label>'+
-    '<button class="btn block" data-act="join"'+dis+'>เข้าร่วมห้อง</button></section>';
+    '<button class="btn block" data-act="join"'+dis+'>เข้าร่วมห้อง</button>'+
+    '<a class="btn block discord" href="https://discord.gg/XqBBQB9CkM" target="_blank" rel="noopener noreferrer">เข้ากลุ่ม Discord</a></section>';
 }
 function lobbyView(){
   var isHost=V.host===V.me;
