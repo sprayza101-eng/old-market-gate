@@ -109,43 +109,39 @@ h3.lb{font-size:16px;font-family:'IBM Plex Sans Thai',sans-serif;font-weight:600
 /* cards */
 .hand{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 @media (min-width:560px){.hand{grid-template-columns:repeat(6,1fr)}}
-.card,.face{position:relative;display:block;width:100%;aspect-ratio:9/16;border-radius:10px;border:2px solid var(--line);background:var(--surface2);color:var(--ink);overflow:hidden;padding:0}
-.card img,.face img,.thumb{display:block;width:100%;height:100%;object-fit:cover}
+.card,.face{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:100%;aspect-ratio:3/4;padding:8px 4px 10px;border-radius:10px;border:2px solid var(--line);background:var(--surface);color:var(--ink);text-align:center}
 .card{cursor:pointer;transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease}
 .card:disabled{cursor:default}
-.tag{position:absolute;font-size:11px;font-weight:600;line-height:1.5;padding:0 8px;border-radius:999px;background:var(--surface2)}
-.card .tag,.face .tag{left:6px;top:6px}
+.card .em,.face .em{font-size:30px;line-height:1.2}
+.card .nm,.face .nm{font-size:13px;line-height:1.35}
+.tag{font-size:11px;font-weight:600;line-height:1.5;padding:0 8px;border-radius:999px;background:var(--surface2)}
 .tag.contra{background:var(--waxbg);color:var(--wax)}
-.tag.good{background:var(--leafbg);color:var(--leaf);left:auto;right:6px;top:auto;bottom:6px}
-.tag.seized{background:var(--waxbg);color:var(--wax);left:auto;right:6px;top:auto;bottom:6px}
-.legal{box-shadow:inset 0 -5px 0 var(--leaf)}
-.contra{box-shadow:inset 0 -5px 0 var(--wax)}
+.tag.good{background:var(--leafbg);color:var(--leaf)}
+.tag.seized{background:var(--waxbg);color:var(--wax)}
+.legal{border-bottom:6px solid var(--leaf)}
+.contra{border-bottom:6px solid var(--wax)}
 .card.sel{transform:translateY(-8px);border-color:var(--gold);box-shadow:0 0 0 2px var(--gold),var(--shadow)}
-.card.sel::after{content:"✓";position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:var(--gold);color:var(--goldink);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center}
-.face.bad{border-color:var(--wax)}
+.card.sel::after{content:"✓";position:absolute;top:4px;right:6px;font-size:13px;font-weight:700;color:var(--goldtext)}
+.face.bad{border-color:var(--wax);background:var(--waxbg)}
 .face.ok{border-color:var(--leaf)}
 .cards-row{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
 .cards-row .face{width:92px}
 
 .piles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.pile{min-height:92px;border-radius:12px;border:1.5px dashed var(--line);background:var(--surface2);padding:8px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:13px;line-height:1.4;text-align:center}
+.pile{min-height:92px;border-radius:12px;border:1.5px dashed var(--line);background:var(--surface2);padding:8px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:13px;line-height:1.4;text-align:center}
 .pile:hover:not(:disabled){border-color:var(--dim)}
 .pile:disabled{opacity:.45;cursor:not-allowed}
 .pile .em{font-size:26px;line-height:1.2}
 .pile b{font-weight:600}
-.pile img.thumb{width:44px;height:auto;aspect-ratio:9/16;border-radius:6px;object-fit:cover}
 
 .steps{display:flex;gap:8px;font-size:14px;color:var(--dim)}
 .steps span{padding:0 10px;border-radius:999px;border:1px solid var(--line)}
 .steps .on{background:var(--gold);border-color:var(--gold);color:var(--goldink);font-weight:600}
 
 .decl{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.decl button{min-height:64px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface2);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:13px;line-height:1.35;color:var(--ink)}
+.decl button{min-height:64px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface2);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:13px;line-height:1.35;color:var(--ink)}
 .decl button .em{font-size:24px;line-height:1.2}
-.decl button img.sm4{width:34px;height:auto;aspect-ratio:9/16;border-radius:6px;object-fit:cover}
 .decl button[aria-pressed="true"]{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold);background:var(--surface)}
-.gfallback{display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:40px}
-.thumb.gfallback,.sm4.gfallback{font-size:22px}
 .note{padding:10px 14px;border-radius:10px;font-size:15px;line-height:1.6}
 .note.t{background:var(--leafbg);color:var(--ink)}
 .note.f{background:var(--waxbg);color:var(--ink)}
@@ -196,9 +192,6 @@ th{color:var(--dim);font-weight:500}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--line);flex:0 0 auto}
 .dot.on{background:var(--leaf)}
 .off{font-size:11px;color:var(--wax);font-weight:600}
-.botbadge{font-size:15px;line-height:1;display:inline-flex;align-items:center;justify-content:center;width:18px}
-.discord{text-decoration:none;display:flex;align-items:center;justify-content:center;background:#5865F2;border-color:#5865F2;color:#fff}
-.discord:hover{opacity:.92}
 .pl.me{background:var(--surface2)}
 .chat{max-width:720px;margin:0 auto;padding:0 16px 32px}
 .chat h3{font-size:16px;font-family:'IBM Plex Sans Thai',sans-serif;font-weight:600;margin-bottom:6px}
@@ -209,10 +202,6 @@ th{color:var(--dim);font-weight:500}
 .chatform input{flex:1;min-height:44px;padding:6px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)}
 .chatform .btn{min-height:44px}
 [hidden]{display:none!important}
-.awards{display:grid;gap:8px}
-.aw{display:grid;grid-template-columns:40px 1fr;gap:0 10px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--surface2)}
-.aw .ic{font-size:26px;grid-row:span 2;text-align:center;line-height:1.2}
-.aw .d{color:var(--dim);font-size:14px}
 .strow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
 .stp{display:flex;align-items:center;gap:12px}
 .step.sm3{width:38px;height:38px;font-size:18px}
@@ -254,7 +243,6 @@ try{var raw=ssGet('omg-session');session=raw?JSON.parse(raw):null;}catch(e){sess
 
 var esc=function(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
 var G=function(t){return GOODS[t];};
-var goodImg=function(t){return '/img/'+t+'.jpg';};
 var sortHand=function(h){return h.slice().sort(function(a,b){return ALL.indexOf(a.t)-ALL.indexOf(b.t)||a.id-b.id;});};
 var toTop=function(){try{window.scrollTo(0,0);}catch(e){}};
 
@@ -281,9 +269,7 @@ function connect(){
   sock.onerror=function(){};
 }
 function send(o){
-  if(ws&&ws.readyState===1){
-    ws.send(JSON.stringify(o));return true;
-  }
+  if(ws&&ws.readyState===1){ws.send(JSON.stringify(o));return true;}
   return false;
 }
 function onMsg(m){
@@ -355,9 +341,7 @@ function emblem(){
 }
 function cardBtn(c,sel,actName){
   var g=G(c.t);
-  return '<button class="card '+(g.legal?'legal':'contra')+(sel?' sel':'')+'" data-act="'+(actName||'toggle')+'" data-id="'+c.id+'" aria-pressed="'+sel+'" aria-label="'+g.name+(g.legal?'':' (เถื่อน)')+'">'+
-    '<img class="gimg" data-good="'+c.t+'" src="'+goodImg(c.t)+'" alt="" loading="lazy">'+
-    (g.legal?'':'<span class="tag contra">เถื่อน</span>')+'</button>';
+  return '<button class="card '+(g.legal?'legal':'contra')+(sel?' sel':'')+'" data-act="'+(actName||'toggle')+'" data-id="'+c.id+'" aria-pressed="'+sel+'"><span class="em">'+g.emoji+'</span><span class="nm">'+g.name+'</span>'+(g.legal?'':'<span class="tag contra">เถื่อน</span>')+'</button>';
 }
 
 /* ---------- ส่วนหัว/แถบ ---------- */
@@ -382,7 +366,7 @@ function renderStrip(){
   if(!V||V.phase!=='game'||V.gphase==='final'){elStrip.innerHTML='';return;}
   elStrip.innerHTML='<div class="strip">'+V.players.map(function(p,i){
     var stall=ALL.filter(function(k){return p.stall[k]>0;}).map(function(k){return '<span class="'+(G(k).legal?'':'x')+'" title="'+G(k).name+'">'+G(k).emoji+p.stall[k]+'</span>';}).join('')||'<span class="dim">แผงว่าง</span>';
-    return '<div class="pl'+(i===V.sheriff?' sheriff':'')+(i===V.me?' me':'')+'"><div class="pn">'+esc(p.name)+(p.bot?' <span class="botbadge" title="บอท">🤖</span>':'')+(i===V.me?' <span class="dim">(คุณ)</span>':'')+(i===V.sheriff?'<span class="badge">นายด่าน</span>':'')+(!p.bot&&!p.online?'<span class="off">ออฟไลน์</span>':'')+'</div>'+
+    return '<div class="pl'+(i===V.sheriff?' sheriff':'')+(i===V.me?' me':'')+'"><div class="pn">'+esc(p.name)+(i===V.me?' <span class="dim">(คุณ)</span>':'')+(i===V.sheriff?'<span class="badge">นายด่าน</span>':'')+(p.online?'':'<span class="off">ออฟไลน์</span>')+'</div>'+
       '<div class="pc"><i class="coin"></i>'+p.coins+'</div><div class="ps">'+stall+'</div></div>';
   }).join('')+'</div>';
 }
@@ -397,8 +381,7 @@ function landingView(){
     '<button class="btn primary block" data-act="create"'+dis+'>สร้างห้องใหม่</button>'+
     '<p class="center dim sm">หรือเข้าห้องของเพื่อน</p>'+
     '<label class="fld"><span>รหัสห้อง</span><input id="codeIn" maxlength="6" autocapitalize="characters" autocomplete="off" value="'+esc(ui.code)+'" placeholder="เช่น K7M2Q"></label>'+
-    '<button class="btn block" data-act="join"'+dis+'>เข้าร่วมห้อง</button>'+
-    '<a class="btn block discord" href="https://discord.gg/XqBBQB9CkM" target="_blank" rel="noopener noreferrer">เข้ากลุ่ม Discord</a></section>';
+    '<button class="btn block" data-act="join"'+dis+'>เข้าร่วมห้อง</button></section>';
 }
 function lobbyView(){
   var isHost=V.host===V.me;
@@ -410,21 +393,15 @@ function lobbyView(){
         ?'<span class="pair"><button class="btn danger sm2" data-act="kickYes" data-i="'+i+'">เตะออก</button><button class="btn sm2" data-act="kickNo">ยกเลิก</button></span>'
         :'<button class="btn sm2" data-act="kickAsk" data-i="'+i+'" aria-label="เตะ '+esc(m.name)+'">เตะ</button>';
     }
-    return '<li>'+(m.bot?'<span class="botbadge" title="บอท">🤖</span>':'<span class="dot '+(m.online?'on':'')+'"></span>')+esc(m.name)+(i===V.me?' <span class="dim">(คุณ)</span>':'')+(i===V.host?' <span class="badge">โฮสต์</span>':'')+(!m.bot&&!m.online?' <span class="off">ออฟไลน์</span>':'')+kick+'</li>';
+    return '<li><span class="dot '+(m.online?'on':'')+'"></span>'+esc(m.name)+(i===V.me?' <span class="dim">(คุณ)</span>':'')+(i===V.host?' <span class="badge">โฮสต์</span>':'')+(m.online?'':' <span class="off">ออฟไลน์</span>')+kick+'</li>';
   }).join('');
   var out='<section class="stage"><div class="center"><p class="dim">รหัสห้อง</p><h2 class="bigcode">'+esc(V.code)+'</h2></div>'+
     '<div><input class="linkbox" readonly value="'+esc(link)+'" aria-label="ลิงก์เชิญ"><button class="btn block" style="margin-top:8px" data-act="copyLink">คัดลอกลิงก์เชิญ</button></div>'+
-    '<div><h3 class="lb">ผู้เล่น '+V.members.length+' คน</h3><ul class="plist">'+list+'</ul>'+
-    (isHost?'<button class="btn block" style="margin-top:10px" data-act="addBot"'+(V.members.length>=20?' disabled':'')+'>+ เพิ่มบอท</button>':'')+'</div>';
+    '<div><h3 class="lb">ผู้เล่น '+V.members.length+' คน</h3><ul class="plist">'+list+'</ul></div>';
   if(isHost){
-    var sc=V.startCoins==null?50:V.startCoins;
-    out+='<div><h3 class="lb">ตั้งค่าเกม</h3>'+
-      '<p class="dim sm" style="margin-top:8px">เป็นนายด่านคนละกี่รอบ</p>'+
-      '<div class="bribe" style="margin-top:4px"><button class="step" data-act="roundsAdj" data-d="-1" aria-label="ลดจำนวนรอบ">−</button><input id="roundsIn" type="number" inputmode="numeric" min="1" max="50" value="'+V.rounds+'" aria-label="จำนวนรอบต่อคน"><button class="step" data-act="roundsAdj" data-d="1" aria-label="เพิ่มจำนวนรอบ">+</button></div>'+
-      '<p class="dim sm center" style="margin-top:6px">รวม '+(V.members.length*V.rounds)+' รอบ · ประมาณ '+Math.round(V.members.length*V.rounds*3)+' นาที · ตั้งได้ 1–50 รอบต่อคน</p>'+
-      '<p class="dim sm" style="margin-top:14px">เหรียญเริ่มต้นของผู้เล่นแต่ละคน</p>'+
-      '<div class="bribe" style="margin-top:4px"><button class="step" data-act="coinsAdj" data-d="-10" aria-label="ลดเหรียญเริ่มต้น">−</button><input id="coinsIn" type="number" inputmode="numeric" min="0" max="999" step="10" value="'+sc+'" aria-label="เหรียญเริ่มต้น"><button class="step" data-act="coinsAdj" data-d="10" aria-label="เพิ่มเหรียญเริ่มต้น">+</button></div>'+
-      '<p class="dim sm center" style="margin-top:6px">ค่าเริ่มต้น 50 เหรียญ · ตั้งได้ 0–999 เหรียญ</p></div>'+
+    out+='<div><h3 class="lb">เป็นนายด่านคนละกี่รอบ</h3>'+
+      '<div class="bribe" style="margin-top:8px"><button class="step" data-act="roundsAdj" data-d="-1" aria-label="ลดจำนวนรอบ">−</button><input id="roundsIn" type="number" inputmode="numeric" min="1" max="50" value="'+V.rounds+'" aria-label="จำนวนรอบต่อคน"><button class="step" data-act="roundsAdj" data-d="1" aria-label="เพิ่มจำนวนรอบ">+</button></div>'+
+      '<p class="dim sm center" style="margin-top:6px">รวม '+(V.members.length*V.rounds)+' รอบ · ประมาณ '+Math.round(V.members.length*V.rounds*3)+' นาที · ตั้งได้ 1–50 รอบต่อคน</p></div>'+
       '<button class="btn primary block" data-act="start"'+(V.members.length<2?' disabled':'')+'>เริ่มเกม</button>';
   }else{
     out+='<p class="lead center">รอโฮสต์กดเริ่มเกม…</p>';
@@ -447,7 +424,7 @@ function marketView(){
   var hand=sortHand(me.hand).map(function(c){return cardBtn(c,ui.sel.has(c.id));}).join('');
   var pileBtn=function(k,label){
     var p=V.piles[k];
-    return '<button class="pile" data-act="draw" data-src="'+k+'"'+(need>0&&p.top?'':' disabled')+'>'+(p.top?'<img class="thumb gimg" data-good="'+p.top+'" src="'+goodImg(p.top)+'" alt="'+G(p.top).name+'">':'<span class="dim">ว่าง</span>')+'<span class="dim">กอง '+label+' ('+p.n+')</span></button>';
+    return '<button class="pile" data-act="draw" data-src="'+k+'"'+(need>0&&p.top?'':' disabled')+'>'+(p.top?'<span class="em">'+G(p.top).emoji+'</span><b>'+G(p.top).name+'</b>':'<span class="dim">ว่าง</span>')+'<span class="dim">กอง '+label+' ('+p.n+')</span></button>';
   };
   var out='<section class="stage">'+stepsBar(1)+
     '<div><h2>จัดไพ่ในมือ</h2><p class="lead">แตะไพ่เพื่อเลือกทิ้งได้สูงสุด 5 ใบ (เหลือสิทธิ์ทิ้ง '+left+' ใบ) แล้วจั่วให้ครบ 6 ใบ</p></div>'+
@@ -465,7 +442,7 @@ function loadView(){
   var chosen=hand.filter(function(c){return ui.sel.has(c.id);});
   var n=chosen.length,d=ui.declared;
   var truth=n>0&&d&&chosen.every(function(c){return c.t===d;});
-  var decl=LEGAL.map(function(k){return '<button data-act="decl" data-t="'+k+'" aria-pressed="'+(d===k)+'"><img class="thumb sm4 gimg" data-good="'+k+'" src="'+goodImg(k)+'" alt="">'+G(k).name+'</button>';}).join('');
+  var decl=LEGAL.map(function(k){return '<button data-act="decl" data-t="'+k+'" aria-pressed="'+(d===k)+'"><span class="em">'+G(k).emoji+'</span>'+G(k).name+'</button>';}).join('');
   var note='';
   if(n>0&&d)note='<div class="note '+(truth?'t':'f')+'">'+(truth?'ถุงนี้ตรงกับที่ประกาศ — พูดจริงทั้งหมด':'ถุงนี้ไม่ตรงกับที่ประกาศ — คุณกำลังโกหก เสี่ยงโดนยึดและจ่ายค่าปรับ')+'</div>';
   return '<section class="stage">'+stepsBar(2)+
@@ -500,13 +477,6 @@ function bountyInfo(){
   if(!es.length)return '';
   return '<div class="note t"><b>ผู้เล่นอื่นเสนอให้เปิดถุงนี้</b><br>'+es.map(function(e){return esc(V.players[e.seat].name)+': '+giveText(e.g);}).join('<br>')+'</div>';
 }
-function giftPending(){
-  if(!V||V.gphase!=='inspect'||!V.insp)return false;
-  var merchant=V.me===V.insp.mi;
-  var coins=merchant?ui.offer:ui.bounty,hs=merchant?ui.offerHand:ui.bountyHand,st=merchant?ui.offerStall:ui.bountyStall;
-  return coins>0||hs.size>0||Object.keys(st).some(function(t){return st[t]>0;});
-}
-function refreshGiftSend(){var b=$('giftSend');if(b)b.disabled=!giftPending();}
 function giftBuilder(o){
   var stallRows=ALL.filter(function(t){return o.p.stall[t]>0;}).map(function(t){
     var n=o.stallSel[t]||0;
@@ -518,7 +488,7 @@ function giftBuilder(o){
   return '<div><h3 class="lb">เหรียญ (คุณมี '+o.p.coins+')</h3><div class="bribe" style="margin-top:8px"><button class="step" data-act="'+o.acts.adj+'" data-d="-1" aria-label="ลดเหรียญ">−</button><input id="'+o.acts.input+'" type="number" inputmode="numeric" min="0" max="'+o.p.coins+'" value="'+o.coins+'" aria-label="จำนวนเหรียญ"><button class="step" data-act="'+o.acts.adj+'" data-d="1" aria-label="เพิ่มเหรียญ">+</button></div></div>'+
     (stallRows?'<div><h3 class="lb">สินค้าจากแผงของคุณ</h3><div style="margin-top:6px">'+stallRows+'</div></div>':'')+
     (hand.length?'<div><h3 class="lb">ไพ่จากมือ (แตะเพื่อเลือก)</h3><p class="dim sm">ไพ่ที่เสนอจะถูกเปิดให้ทุกคนเห็น</p><div class="hand" style="margin-top:8px">'+handCards+'</div></div>':'')+
-    '<div class="btns two"><button id="giftSend" class="btn primary" data-act="'+o.acts.send+'"'+(pending?'':' disabled')+'>'+o.sendLabel+'</button><button class="btn" data-act="'+o.acts.clear+'"'+(o.hasSent?'':' disabled')+'>ถอนข้อเสนอ</button></div>';
+    '<div class="btns two"><button class="btn primary" data-act="'+o.acts.send+'"'+(pending?'':' disabled')+'>'+o.sendLabel+'</button><button class="btn" data-act="'+o.acts.clear+'"'+(o.hasSent?'':' disabled')+'>ถอนข้อเสนอ</button></div>';
 }
 function inspectView(){
   var i=V.insp,m=V.players[i.mi],sh=V.players[V.sheriff],g=G(i.declared);
@@ -558,7 +528,7 @@ function resultView(){
   var kept={};r.kept.forEach(function(c){kept[c.id]=1;});
   var cards=r.cards.map(function(c,i){
     var cg=G(c.t),ok=!!kept[c.id];
-    return '<div class="face '+(cg.legal?'legal':'contra')+' '+(ok?'ok':'bad')+'" style="animation-delay:'+(i*110)+'ms"><img class="gimg" data-good="'+c.t+'" src="'+goodImg(c.t)+'" alt="'+cg.name+'"><span class="tag '+(ok?'good':'seized')+'">'+(ok?'เข้าแผง':'ถูกยึด')+'</span></div>';
+    return '<div class="face '+(cg.legal?'legal':'contra')+' '+(ok?'ok':'bad')+'" style="animation-delay:'+(i*110)+'ms"><span class="em">'+cg.emoji+'</span><span class="nm">'+cg.name+'</span><span class="tag '+(ok?'good':'seized')+'">'+(ok?'เข้าแผง':'ถูกยึด')+'</span></div>';
   }).join('');
   var truthNote=r.mode==='inspect'?'':'<div class="note '+(r.truth?'t':'f')+'">เฉลยหลังปล่อยผ่าน: '+(r.truth?'ในถุงตรงตามประกาศ':'ในถุงไม่ตรงตามประกาศ')+'</div>';
   var bnote=(r.bounty&&r.bounty.length)?'<div class="note t">ผู้เล่นที่เสนอให้เปิดถุง: '+r.bounty.map(function(b){return esc(V.players[b.seat].name)+' '+giveText(b.gave);}).join(' · ')+' — มอบให้นายด่านแล้ว</div>':'';
@@ -573,21 +543,6 @@ function roundEndView(){
   var nextSh=V.players[(V.sheriff+1)%V.players.length].name;
   return '<section class="stage"><h2>จบรอบที่ '+(V.roundNo+1)+'</h2><ul class="log">'+V.log.map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ul>'+
     (V.me===V.sheriff?'<button class="btn primary block" data-act="nextRound">'+(lastRound?'ดูผลคะแนนสุดท้าย':'รอบต่อไป — '+esc(nextSh)+' เป็นนายด่าน')+'</button>':'<p class="lead center">รอ '+esc(V.players[V.sheriff].name)+' กดไปต่อ…</p>')+'</section>';
-}
-function awardsHTML(){
-  var aw=V.awards||[],st=V.stats||[];
-  var list=aw.map(function(a){
-    return '<div class="aw"><span class="ic" aria-hidden="true">'+a.icon+'</span><b>'+esc(a.title)+' · '+a.seats.map(function(i){return esc(V.players[i].name);}).join(', ')+'</b><span class="d">'+esc(a.text)+'</span></div>';
-  }).join('');
-  var tbl='';
-  if(st.length){
-    tbl='<div class="tw"><table><thead><tr><th>ผู้เล่น</th><th>โกหก</th><th>ถูกจับ</th><th>สินบนจ่าย</th><th>สินบนรับ</th></tr></thead><tbody>'+
-      V.players.map(function(p,i){var x=st[i];return '<tr><td>'+esc(p.name)+'</td><td>'+x.lies+'</td><td>'+x.caught+'</td><td>'+x.bribeGiven+'</td><td>'+x.bribeTaken+'</td></tr>';}).join('')+
-      '</tbody></table></div><p class="dim sm">สินบนนับเป็นมูลค่าเหรียญรวมของที่เสนอ (เหรียญ + ราคาสินค้า)</p>';
-  }
-  if(!list&&!tbl)return '';
-  return '<div><h3 class="lb">รางวัลท้ายเกม</h3>'+(list?'<div class="awards" style="margin-top:8px">'+list+'</div>':'<p class="dim sm">รอบนี้ยังไม่มีเหตุการณ์ให้ตั้งรางวัล</p>')+
-    (tbl?'<div style="margin-top:12px">'+tbl+'</div>':'')+'</div>';
 }
 function finalView(){
   var sc=V.score;
@@ -607,7 +562,6 @@ function finalView(){
   }).join('');
   return '<section class="stage"><div class="center"><p class="dim">ผู้ชนะ</p><h2 style="font-size:32px">'+winners.map(function(w){return esc(w.name);}).join(' และ ')+'</h2></div>'+
     '<div class="rank">'+list+'</div>'+
-    awardsHTML()+
     '<div><h3 class="lb">ราชาและราชินีของสินค้าถูกกฎหมาย</h3><div class="kq" style="margin-top:8px">'+kq+'</div></div>'+
     (V.host===V.me?'<button class="btn primary block" data-act="again">เล่นอีกครั้ง (กลับห้องรอ)</button>':'<p class="lead center">รอโฮสต์เริ่มเกมใหม่…</p>')+'</section>';
 }
@@ -664,7 +618,7 @@ function renderOv(){elOv.innerHTML=ui.rules?rulesView():'';}
 function renderAll(){renderHdr();renderBars();renderStrip();renderView();renderChat();renderOv();}
 
 /* ---------- การกระทำของผู้เล่น ---------- */
-function flashToast(t,ms){ui.toast=t;renderBars();setTimeout(function(){if(ui.toast===t){ui.toast='';renderBars();}},ms||2000);}
+function flashToast(t){ui.toast=t;renderBars();setTimeout(function(){ui.toast='';renderBars();},2000);}
 function onAct(a,d){
   switch(a){
     case 'dismiss':ui.error='';renderBars();return;
@@ -681,9 +635,7 @@ function onAct(a,d){
       catch(e){flashToast('คัดลอกไม่ได้ ให้กดค้างที่ช่องลิงก์แล้วคัดลอกเอง');}
       return;
     }
-    case 'addBot':send({t:'addBot'});return;
     case 'roundsAdj':send({t:'settings',rounds:Math.max(1,Math.min(50,V.rounds+(+d.d)))});return;
-    case 'coinsAdj':send({t:'settings',coins:Math.max(0,Math.min(999,(V.startCoins==null?50:V.startCoins)+(+d.d)))});return;
     case 'start':send({t:'start'});return;
     case 'leave':send({t:'leave'});session=null;ssSet('omg-session',null);V=null;chatLog=[];renderAll();return;
     case 'rules':ui.rules=true;renderOv();return;
@@ -706,7 +658,7 @@ function onAct(a,d){
     case 'offerAdj':{
       var coins=V.players[V.insp.mi].coins;
       ui.offer=Math.max(0,Math.min(coins,ui.offer+(+d.d)));
-      var inp=$('offerIn');if(inp)inp.value=ui.offer;refreshGiftSend();return;
+      var inp=$('offerIn');if(inp)inp.value=ui.offer;return;
     }
     case 'kickAsk':ui.kickAsk=+d.i;renderView();return;
     case 'kickNo':ui.kickAsk=-1;renderView();return;
@@ -717,7 +669,7 @@ function onAct(a,d){
     case 'bountyAdj':{
       var bc=V.players[V.me].coins;
       ui.bounty=Math.max(0,Math.min(bc,ui.bounty+(+d.d)));
-      var bi=$('bountyIn');if(bi)bi.value=ui.bounty;refreshGiftSend();return;
+      var bi=$('bountyIn');if(bi)bi.value=ui.bounty;return;
     }
     case 'bountyCard':{
       var bid=+d.id;
@@ -754,17 +706,6 @@ document.addEventListener('click',function(e){
   if(el.classList.contains('ov')&&e.target.closest('[data-stop]'))return;
   onAct(el.dataset.act,el.dataset);
 });
-document.addEventListener('error',function(e){
-  var img=e.target;
-  if(!img||img.tagName!=='IMG'||!img.classList||!img.classList.contains('gimg')||img.dataset.fallenBack)return;
-  img.dataset.fallenBack='1';
-  var t=img.getAttribute('data-good'),g=t&&GOODS[t];
-  var span=document.createElement('span');
-  span.className='em gfallback';
-  span.textContent=g?g.emoji:'❓';
-  span.title=g?g.name:'';
-  img.replaceWith(span);
-},true);
 document.addEventListener('input',function(e){
   var t=e.target;
   if(t.id==='nameIn')ui.name=t.value;
@@ -772,12 +713,12 @@ document.addEventListener('input',function(e){
   else if(t.id==='bountyIn'&&V&&V.players){
     var bcoins=V.players[V.me].coins;
     var bv=parseInt(t.value,10);if(isNaN(bv)||bv<0)bv=0;if(bv>bcoins)bv=bcoins;
-    ui.bounty=bv;if(t.value!==''&&String(bv)!==t.value)t.value=bv;refreshGiftSend();
+    ui.bounty=bv;if(t.value!==''&&String(bv)!==t.value)t.value=bv;
   }
   else if(t.id==='offerIn'&&V&&V.insp){
     var coins=V.players[V.insp.mi].coins;
     var v=parseInt(t.value,10);if(isNaN(v)||v<0)v=0;if(v>coins)v=coins;
-    ui.offer=v;if(t.value!==''&&String(v)!==t.value)t.value=v;refreshGiftSend();
+    ui.offer=v;if(t.value!==''&&String(v)!==t.value)t.value=v;
   }
 });
 function sendChat(){
@@ -792,10 +733,6 @@ document.addEventListener('change',function(e){
   if(t.id==='roundsIn'&&V){
     var v=parseInt(t.value,10);if(isNaN(v)||v<1)v=1;if(v>50)v=50;
     t.value=v;send({t:'settings',rounds:v});
-  }
-  if(t.id==='coinsIn'&&V){
-    var vc=parseInt(t.value,10);if(isNaN(vc)||vc<0)vc=0;if(vc>999)vc=999;
-    t.value=vc;send({t:'settings',coins:vc});
   }
 });
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.rules){ui.rules=false;renderOv();}});

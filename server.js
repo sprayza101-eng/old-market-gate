@@ -130,8 +130,8 @@ function effHost(room){
   return i<0?0:i;
 }
 function viewFor(room,seat){
-  const v={code:room.code,phase:room.phase,me:seat,host:effHost(room),rounds:room.rounds,startCoins:room.startCoins,
-    members:room.members.map(function(m){return {name:m.name,online:!!m.conn,bot:!!m.bot};}),
+  const v={code:room.code,phase:room.phase,me:seat,host:effHost(room),rounds:room.rounds,
+    members:room.members.map(function(m){return {name:m.name,online:!!m.conn};}),
     chat:room.chat.slice(-40)};
   if(room.phase!=='game')return v;
   const S=room.S;
@@ -139,7 +139,7 @@ function viewFor(room,seat){
   v.deck=S.deck.length;
   v.piles=S.piles.map(function(p){return {n:p.length,top:p.length?p[p.length-1].t:null};});
   v.players=S.players.map(function(p,i){
-    return {name:p.name,coins:p.coins,stall:p.stall,handN:p.hand.length,online:!!room.members[i].conn,bot:!!room.members[i].bot,hand:i===seat?p.hand:undefined};
+    return {name:p.name,coins:p.coins,stall:p.stall,handN:p.hand.length,online:!!room.members[i].conn,hand:i===seat?p.hand:undefined};
   });
   v.prep=S.prep;v.inspIdx=S.inspIdx;v.offer=S.offer;v.bounty={};
   v.offerItems={hand:[],stall:{}};
@@ -160,7 +160,7 @@ function viewFor(room,seat){
     v.insp={mi:mi,declared:b.declared,n:b.cards.length};
   }
   v.myBag=S.bags[seat]||null;
-  if(S.phase==='final'){v.score=E.score(S);v.awards=E.awards(S);v.stats=S.stats;}
+  if(S.phase==='final')v.score=E.score(S);
   return v;
 }
 function broadcast(room){
@@ -169,139 +169,6 @@ function broadcast(room){
     if(m.conn)m.conn.send({t:'state',v:viewFor(room,i)});
   });
 }
-
-/* ---------- บอท ---------- */
-// ดีเลย์ "คิด" ของบอทแต่ละสถานการณ์ (มิลลิวินาที) — นายด่านบอทตัดสินใจช้ากว่าพ่อค้าบอทเล็กน้อย
-// เพื่อให้ข้อเสนอสินบน/เงินเปิดถุงของบอทตัวอื่น (ถ้ามี) มีโอกาสมาถึงก่อน
-const BOT_DELAY={
-  prep:[1500,3000],
-  offer:[1200,2200],
-  bounty:[1000,2000],
-  decide:[2600,4000],
-  next:[900,1600],
-  roundEnd:[900,1600]
-};
-function randDelay(range){return range[0]+Math.floor(Math.random()*(range[1]-range[0]));}
-function scheduleBot(room,key,range,fn){
-  if(room.botBusy.has(key))return;
-  room.botBusy.add(key);
-  setTimeout(function(){
-    room.botBusy.delete(key);
-    if(!rooms.has(room.code))return;
-    fn();
-  },randDelay(range));
-}
-function botDoPrep(S,mi){
-  const p=S.players[mi];
-  const discardN=Math.random()<0.5?0:(1+Math.floor(Math.random()*3));
-  if(discardN>0){
-    const ids=p.hand.slice(0,Math.min(discardN,p.hand.length)).map(function(c){return c.id;});
-    E.discardCards(S,mi,ids,Math.random()<0.5?0:1);
-  }
-  let guard=0;
-  while(p.hand.length<E.HAND&&guard++<20)E.drawCard(S,mi,'deck');
-  E.toLoad(S,mi);
-  const counts={};E.LEGAL.forEach(function(t){counts[t]=0;});
-  p.hand.forEach(function(c){if(counts[c.t]!==undefined)counts[c.t]++;});
-  let declared=E.LEGAL[0],best=-1;
-  E.LEGAL.forEach(function(t){if(counts[t]>best){best=counts[t];declared=t;}});
-  let chosen=p.hand.filter(function(c){return c.t===declared;}).slice(0,5).map(function(c){return c.id;});
-  if(!chosen.length){
-    chosen=p.hand.slice(0,Math.min(3,p.hand.length)).map(function(c){return c.id;});
-  }else if(Math.random()<0.35&&chosen.length<5){
-    const extra=p.hand.filter(function(c){return chosen.indexOf(c.id)<0;}).slice(0,1+Math.floor(Math.random()*2));
-    extra.forEach(function(c){if(chosen.length<5)chosen.push(c.id);});
-  }
-  if(!chosen.length&&p.hand.length)chosen=[p.hand[0].id];
-  if(chosen.length)E.loadBag(S,mi,chosen,declared);
-}
-function botMaybeOffer(S,mi){
-  if(Math.random()>=0.45)return;
-  const m=S.players[mi];
-  const coins=Math.min(m.coins,1+Math.floor(Math.random()*6));
-  let handIds=[];
-  if(m.hand.length&&Math.random()<0.2)handIds=[m.hand[Math.floor(Math.random()*m.hand.length)].id];
-  const stall={};
-  const owned=E.ALL.filter(function(t){return m.stall[t]>=3;});
-  if(owned.length&&Math.random()<0.3)stall[owned[Math.floor(Math.random()*owned.length)]]=1;
-  if(coins<1&&!handIds.length&&!Object.keys(stall).length)return;
-  E.setOffer(S,coins,handIds,stall);
-}
-function botMaybeBounty(S,seat){
-  if(Math.random()>=0.15)return;
-  const p=S.players[seat];
-  const coins=Math.min(p.coins,1+Math.floor(Math.random()*4));
-  if(coins<1)return;
-  E.setBounty(S,seat,coins,[],{});
-}
-function botDecide(S){
-  const offerCoins=S.offer||0;
-  const hasGoods=(S.offerItems.hand&&S.offerItems.hand.length>0)||Object.keys(S.offerItems.stall||{}).length>0;
-  const bribeScore=offerCoins+(hasGoods?4:0);
-  let bountyScore=0;
-  Object.keys(S.bounty||{}).forEach(function(k){
-    const g=S.bounty[k];
-    bountyScore+=(g.coins||0)+(g.hand?g.hand.length*3:0)+Object.values(g.stall||{}).reduce(function(a,b){return a+b*3;},0);
-  });
-  const r=Math.random();
-  if(bribeScore>0&&r<0.35+Math.min(0.5,bribeScore/12)){E.resolve(S,'bribe');return;}
-  if(bountyScore>0&&Math.random()<0.3+Math.min(0.5,bountyScore/10)){E.resolve(S,'inspect');return;}
-  E.resolve(S,Math.random()<0.5?'pass':'inspect');
-}
-function maybeScheduleBots(room){
-  if(room.phase!=='game'||!room.S)return;
-  const S=room.S,roundNo=S.roundNo;
-  if(S.phase==='prep'){
-    S.merchants.forEach(function(mi){
-      const mem=room.members[mi];
-      if(mem&&mem.bot&&S.prep[mi]&&S.prep[mi].step!=='done'){
-        scheduleBot(room,'prep:'+mi+':'+roundNo,BOT_DELAY.prep,function(){
-          if(room.phase!=='game'||room.S!==S||S.phase!=='prep'||S.roundNo!==roundNo||!S.prep[mi]||S.prep[mi].step==='done')return;
-          botDoPrep(S,mi);broadcastAndBots(room);
-        });
-      }
-    });
-  }else if(S.phase==='inspect'&&S.merchants.length){
-    const inspIdx=S.inspIdx,mi=S.merchants[inspIdx];
-    const same=function(){return room.phase==='game'&&room.S===S&&S.phase==='inspect'&&S.roundNo===roundNo&&S.inspIdx===inspIdx;};
-    const mMem=room.members[mi];
-    if(mMem&&mMem.bot){
-      scheduleBot(room,'offer:'+mi+':'+roundNo+':'+inspIdx,BOT_DELAY.offer,function(){
-        if(!same())return;botMaybeOffer(S,mi);broadcastAndBots(room);
-      });
-    }
-    room.members.forEach(function(m,seat){
-      if(m&&m.bot&&seat!==S.sheriff&&seat!==mi){
-        scheduleBot(room,'bounty:'+seat+':'+roundNo+':'+inspIdx,BOT_DELAY.bounty,function(){
-          if(!same())return;botMaybeBounty(S,seat);broadcastAndBots(room);
-        });
-      }
-    });
-    const shMem=room.members[S.sheriff];
-    if(shMem&&shMem.bot){
-      scheduleBot(room,'decide:'+S.sheriff+':'+roundNo+':'+inspIdx,BOT_DELAY.decide,function(){
-        if(!same())return;botDecide(S);broadcastAndBots(room);
-      });
-    }
-  }else if(S.phase==='result'){
-    const shMem=room.members[S.sheriff];
-    if(shMem&&shMem.bot){
-      scheduleBot(room,'next:'+roundNo+':'+S.inspIdx,BOT_DELAY.next,function(){
-        if(room.phase!=='game'||room.S!==S||S.phase!=='result'||S.roundNo!==roundNo)return;
-        E.nextAfterResult(S);broadcastAndBots(room);
-      });
-    }
-  }else if(S.phase==='roundEnd'){
-    const shMem=room.members[S.sheriff];
-    if(shMem&&shMem.bot){
-      scheduleBot(room,'roundEnd:'+roundNo,BOT_DELAY.roundEnd,function(){
-        if(room.phase!=='game'||room.S!==S||S.phase!=='roundEnd'||S.roundNo!==roundNo)return;
-        E.startNextRound(S);broadcastAndBots(room);
-      });
-    }
-  }
-}
-function broadcastAndBots(room){broadcast(room);maybeScheduleBots(room);}
 function err(conn,msg,fatal){conn.send({t:'error',msg:msg,fatal:!!fatal});}
 function detachOnly(conn){
   if(conn.member&&conn.member.conn===conn)conn.member.conn=null;
@@ -340,11 +207,6 @@ function attach(conn,room,member){
   conn.room=room;conn.member=member;member.conn=conn;room.last=Date.now();
   conn.send({t:'hello',code:room.code,token:member.token});
 }
-function botName(room){
-  let n=1;
-  while(room.members.some(function(m){return m.name==='บอท '+n;}))n++;
-  return 'บอท '+n;
-}
 function uniqueName(room,name){
   const base=name||('ผู้เล่น '+(room.members.length+1));
   let n=base,k=1;
@@ -359,7 +221,7 @@ function handle(conn,m){
     case 'create':{
       if(rooms.size>=MAX_ROOMS)return err(conn,'เซิร์ฟเวอร์เต็มชั่วคราว ลองใหม่อีกครั้งภายหลัง');
       leaveRoom(conn);
-      const room={code:makeCode(),members:[],rounds:2,startCoins:50,phase:'lobby',S:null,chat:[],chatId:0,last:Date.now(),botBusy:new Set()};
+      const room={code:makeCode(),members:[],rounds:2,phase:'lobby',S:null,chat:[],chatId:0,last:Date.now()};
       const member={name:cleanName(m.name)||'ผู้เล่น 1',token:newToken(),conn:null};
       room.members.push(member);rooms.set(room.code,room);
       attach(conn,room,member);broadcast(room);return;
@@ -395,8 +257,7 @@ function handle(conn,m){
   switch(m.t){
     case 'settings':
       if(!isHost||room.phase!=='lobby')return;
-      if(m.rounds!==undefined)room.rounds=Math.max(1,Math.min(50,parseInt(m.rounds,10)||1));
-      if(m.coins!==undefined)room.startCoins=Math.max(0,Math.min(999,parseInt(m.coins,10)||0));
+      room.rounds=Math.max(1,Math.min(50,parseInt(m.rounds,10)||1));
       broadcast(room);return;
     case 'kick':{
       if(!isHost||room.phase!=='lobby')return;
@@ -406,20 +267,14 @@ function handle(conn,m){
       if(target.conn){const tc=target.conn;tc.send({t:'kicked'});detachOnly(tc);}
       removeMember(room,target);return;
     }
-    case 'addBot':{
-      if(!isHost||room.phase!=='lobby')return;
-      if(room.members.length>=MAX_PLAYERS)return err(conn,'ห้องเต็มแล้ว (สูงสุด '+MAX_PLAYERS+' คน)');
-      room.members.push({name:botName(room),token:null,conn:null,bot:true});
-      broadcast(room);return;
-    }
     case 'endgame':
       if(!isHost||room.phase!=='game')return;
-      room.phase='lobby';room.S=null;room.botBusy=new Set();broadcast(room);return;
+      room.phase='lobby';room.S=null;broadcast(room);return;
     case 'start':
       if(!isHost||room.phase!=='lobby')return;
       if(room.members.length<2)return err(conn,'ต้องมีผู้เล่นอย่างน้อย 2 คน');
-      room.S=E.newGame(room.members.map(function(x){return x.name;}),room.rounds,undefined,room.startCoins);
-      room.phase='game';broadcastAndBots(room);return;
+      room.S=E.newGame(room.members.map(function(x){return x.name;}),room.rounds);
+      room.phase='game';broadcast(room);return;
     case 'chat':{
       const text=String(m.text==null?'':m.text).replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,200);
       if(!text)return;
@@ -465,9 +320,9 @@ function game(room,me,isHost,m){
   }else if(S.phase==='roundEnd'){
     if(me===S.sheriff&&a==='nextRound')changed=E.startNextRound(S);
   }else if(S.phase==='final'){
-    if(isHost&&a==='again'){room.phase='lobby';room.S=null;room.botBusy=new Set();changed=true;}
+    if(isHost&&a==='again'){room.phase='lobby';room.S=null;changed=true;}
   }
-  if(changed)broadcastAndBots(room);
+  if(changed)broadcast(room);
 }
 setInterval(function(){
   const cutoff=Date.now()-3*3600*1000;
