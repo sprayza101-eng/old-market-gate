@@ -160,7 +160,7 @@ function viewFor(room,seat){
     v.insp={mi:mi,declared:b.declared,n:b.cards.length};
   }
   v.myBag=S.bags[seat]||null;
-  if(S.phase==='final')v.score=E.score(S);
+  if(S.phase==='final'){v.score=E.score(S);v.awards=E.awards(S);v.stats=S.stats;}
   return v;
 }
 function broadcast(room){

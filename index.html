@@ -202,6 +202,10 @@ th{color:var(--dim);font-weight:500}
 .chatform input{flex:1;min-height:44px;padding:6px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)}
 .chatform .btn{min-height:44px}
 [hidden]{display:none!important}
+.awards{display:grid;gap:8px}
+.aw{display:grid;grid-template-columns:40px 1fr;gap:0 10px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--surface2)}
+.aw .ic{font-size:26px;grid-row:span 2;text-align:center;line-height:1.2}
+.aw .d{color:var(--dim);font-size:14px}
 .strow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
 .stp{display:flex;align-items:center;gap:12px}
 .step.sm3{width:38px;height:38px;font-size:18px}
@@ -237,7 +241,8 @@ function ssSet(k,v){try{if(v==null)sessionStorage.removeItem(k);else sessionStor
 
 var qs='';try{qs=new URLSearchParams(location.search).get('room')||'';}catch(e){}
 var ui={online:false,name:lsGet('omg-name')||'',code:qs.toUpperCase().slice(0,6),error:'',toast:'',
-  sel:new Set(),declared:null,offer:0,offerHand:new Set(),offerStall:{},bounty:0,bountyHand:new Set(),bountyStall:{},offerKey:'',rules:false,kickAsk:-1,confirmEnd:false};
+  sel:new Set(),declared:null,offer:0,offerHand:new Set(),offerStall:{},bounty:0,bountyHand:new Set(),bountyStall:{},offerKey:'',rules:false,kickAsk:-1,confirmEnd:false,lastAct:0,turnKey:'',sound:lsGet('omg-sound')!=='off'};
+var baseTitle=document.title||'ด่านตลาดเก่า ออนไลน์';
 var V=null,ws=null,retry=0,chatLog=[],session=null;
 try{var raw=ssGet('omg-session');session=raw?JSON.parse(raw):null;}catch(e){session=null;}
 
@@ -269,7 +274,10 @@ function connect(){
   sock.onerror=function(){};
 }
 function send(o){
-  if(ws&&ws.readyState===1){ws.send(JSON.stringify(o));return true;}
+  if(ws&&ws.readyState===1){
+    if(o&&o.t==='act')ui.lastAct=Date.now();
+    ws.send(JSON.stringify(o));return true;
+  }
   return false;
 }
 function onMsg(m){
@@ -289,6 +297,7 @@ function onMsg(m){
       else if(V.gphase==='inspect'&&V.me!==V.merchants[V.inspIdx]){ui.offer=V.offer||0;syncOfferItems();}
     }
     renderAll();
+    checkTurn();
   }else if(m.t==='chat'){
     if(!chatLog.some(function(x){return x.id===m.m.id;}))chatLog.push(m.m);
     renderChat();
@@ -301,6 +310,64 @@ function onMsg(m){
   }else if(m.t==='left'){
     session=null;ssSet('omg-session',null);V=null;chatLog=[];renderAll();
   }
+}
+/* ---------- แจ้งเตือนถึงตาคุณ ---------- */
+var audio=null;
+function unlockAudio(){
+  try{
+    var AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC)return;
+    if(!audio)audio=new AC();
+    if(audio.state==='suspended')audio.resume();
+  }catch(e){}
+}
+function beep(){
+  try{
+    unlockAudio();if(!audio)return;
+    var t0=audio.currentTime;
+    [660,880].forEach(function(f,i){
+      var o=audio.createOscillator(),g=audio.createGain(),st=t0+i*0.18;
+      o.type='sine';o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,st);
+      g.gain.exponentialRampToValueAtTime(0.25,st+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,st+0.16);
+      o.connect(g);g.connect(audio.destination);o.start(st);o.stop(st+0.18);
+    });
+  }catch(e){}
+}
+function requestNotif(){
+  try{if(typeof Notification!=='undefined'&&Notification.permission==='default')Notification.requestPermission();}catch(e){}
+}
+function restoreTitle(){try{if(document.title!==baseTitle)document.title=baseTitle;}catch(e){}}
+function myTurn(){
+  if(!V||V.phase!=='game')return null;
+  var p=V.gphase,me=V.me;
+  if(p==='prep'&&me!==V.sheriff&&V.prep[me]&&V.prep[me].step!=='done')return {key:'prep:'+V.roundNo,text:'ถึงตาคุณ: เริ่มรอบใหม่ จัดไพ่และถุงของคุณ'};
+  if(p==='inspect'&&V.insp){
+    var k='insp:'+V.roundNo+':'+V.inspIdx;
+    if(me===V.sheriff)return {key:k,text:'ถึงตาคุณ: ตัดสินใจกับถุงของ '+V.players[V.insp.mi].name};
+    if(me===V.insp.mi)return {key:k,text:'ถึงตาคุณ: นายด่านกำลังตรวจถุงของคุณ เสนอสินบนได้'};
+  }
+  if(p==='final')return {key:'final',text:'จบเกมแล้ว ดูผลคะแนนได้เลย'};
+  return null;
+}
+function notifyTurn(text){
+  flashToast('🔔 '+text,4000);
+  if(ui.sound)beep();
+  try{if(navigator.vibrate)navigator.vibrate([150,80,150]);}catch(e){}
+  try{
+    if(document.hidden){
+      document.title='🔔 ถึงตาคุณ! · ด่านตลาดเก่า';
+      if(typeof Notification!=='undefined'&&Notification.permission==='granted')new Notification('ด่านตลาดเก่า — ถึงตาคุณ',{body:text,tag:'omg-turn'});
+    }
+  }catch(e){}
+}
+function checkTurn(){
+  var t=myTurn();
+  if(!t||t.key===ui.turnKey)return;
+  ui.turnKey=t.key;
+  if(Date.now()-ui.lastAct<900)return;   // ผลจากการกดของเราเอง ไม่ต้องเตือน
+  notifyTurn(t.text);
 }
 function syncOfferItems(){
   var it=V.offerItems||{hand:[],stall:{}};
@@ -350,6 +417,7 @@ function renderHdr(){
     (V&&V.phase==='game'&&V.gphase!=='final'?'<span class="round">รอบ '+(V.roundNo+1)+'/'+V.totalRounds+'</span>':'')+
     (V?'<span class="code" title="รหัสห้อง">'+esc(V.code)+'</span>':'')+
     (V&&V.phase==='game'&&V.host===V.me&&V.gphase!=='final'?'<button class="ghost" data-act="endAsk">ยุติเกม</button>':'')+
+    '<button class="ghost" data-act="sound" aria-pressed="'+ui.sound+'" aria-label="เปิดปิดเสียงแจ้งเตือน">'+(ui.sound?'🔔':'🔕')+'</button>'+
     '<button class="ghost" data-act="rules">กติกา</button>'+
     (V?'<button class="ghost" data-act="leave">ออก</button>':'')+
     '</div></header>';
@@ -477,6 +545,13 @@ function bountyInfo(){
   if(!es.length)return '';
   return '<div class="note t"><b>ผู้เล่นอื่นเสนอให้เปิดถุงนี้</b><br>'+es.map(function(e){return esc(V.players[e.seat].name)+': '+giveText(e.g);}).join('<br>')+'</div>';
 }
+function giftPending(){
+  if(!V||V.gphase!=='inspect'||!V.insp)return false;
+  var merchant=V.me===V.insp.mi;
+  var coins=merchant?ui.offer:ui.bounty,hs=merchant?ui.offerHand:ui.bountyHand,st=merchant?ui.offerStall:ui.bountyStall;
+  return coins>0||hs.size>0||Object.keys(st).some(function(t){return st[t]>0;});
+}
+function refreshGiftSend(){var b=$('giftSend');if(b)b.disabled=!giftPending();}
 function giftBuilder(o){
   var stallRows=ALL.filter(function(t){return o.p.stall[t]>0;}).map(function(t){
     var n=o.stallSel[t]||0;
@@ -488,7 +563,7 @@ function giftBuilder(o){
   return '<div><h3 class="lb">เหรียญ (คุณมี '+o.p.coins+')</h3><div class="bribe" style="margin-top:8px"><button class="step" data-act="'+o.acts.adj+'" data-d="-1" aria-label="ลดเหรียญ">−</button><input id="'+o.acts.input+'" type="number" inputmode="numeric" min="0" max="'+o.p.coins+'" value="'+o.coins+'" aria-label="จำนวนเหรียญ"><button class="step" data-act="'+o.acts.adj+'" data-d="1" aria-label="เพิ่มเหรียญ">+</button></div></div>'+
     (stallRows?'<div><h3 class="lb">สินค้าจากแผงของคุณ</h3><div style="margin-top:6px">'+stallRows+'</div></div>':'')+
     (hand.length?'<div><h3 class="lb">ไพ่จากมือ (แตะเพื่อเลือก)</h3><p class="dim sm">ไพ่ที่เสนอจะถูกเปิดให้ทุกคนเห็น</p><div class="hand" style="margin-top:8px">'+handCards+'</div></div>':'')+
-    '<div class="btns two"><button class="btn primary" data-act="'+o.acts.send+'"'+(pending?'':' disabled')+'>'+o.sendLabel+'</button><button class="btn" data-act="'+o.acts.clear+'"'+(o.hasSent?'':' disabled')+'>ถอนข้อเสนอ</button></div>';
+    '<div class="btns two"><button id="giftSend" class="btn primary" data-act="'+o.acts.send+'"'+(pending?'':' disabled')+'>'+o.sendLabel+'</button><button class="btn" data-act="'+o.acts.clear+'"'+(o.hasSent?'':' disabled')+'>ถอนข้อเสนอ</button></div>';
 }
 function inspectView(){
   var i=V.insp,m=V.players[i.mi],sh=V.players[V.sheriff],g=G(i.declared);
@@ -544,6 +619,21 @@ function roundEndView(){
   return '<section class="stage"><h2>จบรอบที่ '+(V.roundNo+1)+'</h2><ul class="log">'+V.log.map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ul>'+
     (V.me===V.sheriff?'<button class="btn primary block" data-act="nextRound">'+(lastRound?'ดูผลคะแนนสุดท้าย':'รอบต่อไป — '+esc(nextSh)+' เป็นนายด่าน')+'</button>':'<p class="lead center">รอ '+esc(V.players[V.sheriff].name)+' กดไปต่อ…</p>')+'</section>';
 }
+function awardsHTML(){
+  var aw=V.awards||[],st=V.stats||[];
+  var list=aw.map(function(a){
+    return '<div class="aw"><span class="ic" aria-hidden="true">'+a.icon+'</span><b>'+esc(a.title)+' · '+a.seats.map(function(i){return esc(V.players[i].name);}).join(', ')+'</b><span class="d">'+esc(a.text)+'</span></div>';
+  }).join('');
+  var tbl='';
+  if(st.length){
+    tbl='<div class="tw"><table><thead><tr><th>ผู้เล่น</th><th>โกหก</th><th>ถูกจับ</th><th>สินบนจ่าย</th><th>สินบนรับ</th></tr></thead><tbody>'+
+      V.players.map(function(p,i){var x=st[i];return '<tr><td>'+esc(p.name)+'</td><td>'+x.lies+'</td><td>'+x.caught+'</td><td>'+x.bribeGiven+'</td><td>'+x.bribeTaken+'</td></tr>';}).join('')+
+      '</tbody></table></div><p class="dim sm">สินบนนับเป็นมูลค่าเหรียญรวมของที่เสนอ (เหรียญ + ราคาสินค้า)</p>';
+  }
+  if(!list&&!tbl)return '';
+  return '<div><h3 class="lb">รางวัลท้ายเกม</h3>'+(list?'<div class="awards" style="margin-top:8px">'+list+'</div>':'<p class="dim sm">รอบนี้ยังไม่มีเหตุการณ์ให้ตั้งรางวัล</p>')+
+    (tbl?'<div style="margin-top:12px">'+tbl+'</div>':'')+'</div>';
+}
 function finalView(){
   var sc=V.score;
   var rows=sc.rows.slice().sort(function(a,b){return b.total-a.total;});
@@ -562,6 +652,7 @@ function finalView(){
   }).join('');
   return '<section class="stage"><div class="center"><p class="dim">ผู้ชนะ</p><h2 style="font-size:32px">'+winners.map(function(w){return esc(w.name);}).join(' และ ')+'</h2></div>'+
     '<div class="rank">'+list+'</div>'+
+    awardsHTML()+
     '<div><h3 class="lb">ราชาและราชินีของสินค้าถูกกฎหมาย</h3><div class="kq" style="margin-top:8px">'+kq+'</div></div>'+
     (V.host===V.me?'<button class="btn primary block" data-act="again">เล่นอีกครั้ง (กลับห้องรอ)</button>':'<p class="lead center">รอโฮสต์เริ่มเกมใหม่…</p>')+'</section>';
 }
@@ -618,15 +709,17 @@ function renderOv(){elOv.innerHTML=ui.rules?rulesView():'';}
 function renderAll(){renderHdr();renderBars();renderStrip();renderView();renderChat();renderOv();}
 
 /* ---------- การกระทำของผู้เล่น ---------- */
-function flashToast(t){ui.toast=t;renderBars();setTimeout(function(){ui.toast='';renderBars();},2000);}
+function flashToast(t,ms){ui.toast=t;renderBars();setTimeout(function(){if(ui.toast===t){ui.toast='';renderBars();}},ms||2000);}
 function onAct(a,d){
   switch(a){
     case 'dismiss':ui.error='';renderBars();return;
     case 'create':
+      requestNotif();
       lsSet('omg-name',ui.name);
       send({t:'create',name:ui.name});return;
     case 'join':
       if(!ui.code){ui.error='กรอกรหัสห้องก่อน';renderBars();return;}
+      requestNotif();
       lsSet('omg-name',ui.name);
       send({t:'join',code:ui.code,name:ui.name});return;
     case 'copyLink':{
@@ -638,6 +731,10 @@ function onAct(a,d){
     case 'roundsAdj':send({t:'settings',rounds:Math.max(1,Math.min(50,V.rounds+(+d.d)))});return;
     case 'start':send({t:'start'});return;
     case 'leave':send({t:'leave'});session=null;ssSet('omg-session',null);V=null;chatLog=[];renderAll();return;
+    case 'sound':
+      ui.sound=!ui.sound;lsSet('omg-sound',ui.sound?'on':'off');
+      if(ui.sound){unlockAudio();beep();requestNotif();}
+      renderHdr();return;
     case 'rules':ui.rules=true;renderOv();return;
     case 'closeRules':ui.rules=false;renderOv();return;
     case 'toggle':{
@@ -658,7 +755,7 @@ function onAct(a,d){
     case 'offerAdj':{
       var coins=V.players[V.insp.mi].coins;
       ui.offer=Math.max(0,Math.min(coins,ui.offer+(+d.d)));
-      var inp=$('offerIn');if(inp)inp.value=ui.offer;return;
+      var inp=$('offerIn');if(inp)inp.value=ui.offer;refreshGiftSend();return;
     }
     case 'kickAsk':ui.kickAsk=+d.i;renderView();return;
     case 'kickNo':ui.kickAsk=-1;renderView();return;
@@ -669,7 +766,7 @@ function onAct(a,d){
     case 'bountyAdj':{
       var bc=V.players[V.me].coins;
       ui.bounty=Math.max(0,Math.min(bc,ui.bounty+(+d.d)));
-      var bi=$('bountyIn');if(bi)bi.value=ui.bounty;return;
+      var bi=$('bountyIn');if(bi)bi.value=ui.bounty;refreshGiftSend();return;
     }
     case 'bountyCard':{
       var bid=+d.id;
@@ -701,6 +798,7 @@ function onAct(a,d){
   }
 }
 document.addEventListener('click',function(e){
+  unlockAudio();restoreTitle();
   var el=e.target.closest('[data-act]');
   if(!el||el.disabled)return;
   if(el.classList.contains('ov')&&e.target.closest('[data-stop]'))return;
@@ -713,12 +811,12 @@ document.addEventListener('input',function(e){
   else if(t.id==='bountyIn'&&V&&V.players){
     var bcoins=V.players[V.me].coins;
     var bv=parseInt(t.value,10);if(isNaN(bv)||bv<0)bv=0;if(bv>bcoins)bv=bcoins;
-    ui.bounty=bv;if(t.value!==''&&String(bv)!==t.value)t.value=bv;
+    ui.bounty=bv;if(t.value!==''&&String(bv)!==t.value)t.value=bv;refreshGiftSend();
   }
   else if(t.id==='offerIn'&&V&&V.insp){
     var coins=V.players[V.insp.mi].coins;
     var v=parseInt(t.value,10);if(isNaN(v)||v<0)v=0;if(v>coins)v=coins;
-    ui.offer=v;if(t.value!==''&&String(v)!==t.value)t.value=v;
+    ui.offer=v;if(t.value!==''&&String(v)!==t.value)t.value=v;refreshGiftSend();
   }
 });
 function sendChat(){
@@ -735,6 +833,7 @@ document.addEventListener('change',function(e){
     t.value=v;send({t:'settings',rounds:v});
   }
 });
+try{document.addEventListener('visibilitychange',function(){if(!document.hidden)restoreTitle();});}catch(e){}
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.rules){ui.rules=false;renderOv();}});
 
 renderAll();
