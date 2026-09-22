@@ -199,11 +199,6 @@ th{color:var(--dim);font-weight:500}
 .botbadge{font-size:15px;line-height:1;display:inline-flex;align-items:center;justify-content:center;width:18px}
 .discord{text-decoration:none;display:flex;align-items:center;justify-content:center;background:#5865F2;border-color:#5865F2;color:#fff}
 .discord:hover{opacity:.92}
-.turnbanner{display:flex;align-items:center;justify-content:center}
-.turncard{max-width:340px;margin:0 auto;background:var(--surface);border:2px solid var(--gold);border-radius:20px;padding:30px 24px;box-shadow:var(--shadow);text-align:center}
-.turncard .bell{font-size:48px;line-height:1}
-.turncard h2{font-size:26px;margin-top:8px}
-.turncard p{margin-top:8px;color:var(--dim);font-size:16px;line-height:1.6}
 .pl.me{background:var(--surface2)}
 .chat{max-width:720px;margin:0 auto;padding:0 16px 32px}
 .chat h3{font-size:16px;font-family:'IBM Plex Sans Thai',sans-serif;font-weight:600;margin-bottom:6px}
@@ -237,7 +232,6 @@ th{color:var(--dim);font-weight:500}
   <div class="chatform"><input id="chatinp" maxlength="200" autocomplete="off" placeholder="พิมพ์ข้อความ…" aria-label="ข้อความแชต"><button id="chatsend" class="btn primary">ส่ง</button></div>
 </section>
 <div id="ov"></div>
-<div id="turnov"></div>
 <script src="/engine.js"></script>
 <script>
 (function(){
@@ -245,7 +239,7 @@ th{color:var(--dim);font-weight:500}
 var Eng=window.Engine;
 var GOODS=Eng.GOODS,ALL=Eng.ALL,LEGAL=Eng.LEGAL,HAND=Eng.HAND,BAG_MAX=Eng.BAG_MAX,DISCARD_MAX=Eng.DISCARD_MAX;
 var $=function(id){return document.getElementById(id);};
-var elHdr=$('hdr'),elBars=$('bars'),elStrip=$('strip'),elView=$('view'),elChat=$('chat'),elLog=$('chatlog'),elInp=$('chatinp'),elOv=$('ov'),elTurn=$('turnov');
+var elHdr=$('hdr'),elBars=$('bars'),elStrip=$('strip'),elView=$('view'),elChat=$('chat'),elLog=$('chatlog'),elInp=$('chatinp'),elOv=$('ov');
 
 function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
 function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
@@ -254,7 +248,7 @@ function ssSet(k,v){try{if(v==null)sessionStorage.removeItem(k);else sessionStor
 
 var qs='';try{qs=new URLSearchParams(location.search).get('room')||'';}catch(e){}
 var ui={online:false,name:lsGet('omg-name')||'',code:qs.toUpperCase().slice(0,6),error:'',toast:'',
-  sel:new Set(),declared:null,offer:0,offerHand:new Set(),offerStall:{},bounty:0,bountyHand:new Set(),bountyStall:{},offerKey:'',rules:false,kickAsk:-1,confirmEnd:false,lastAct:0,turnKey:'',turnBanner:null};
+  sel:new Set(),declared:null,offer:0,offerHand:new Set(),offerStall:{},bounty:0,bountyHand:new Set(),bountyStall:{},offerKey:'',rules:false,kickAsk:-1,confirmEnd:false};
 var V=null,ws=null,retry=0,chatLog=[],session=null;
 try{var raw=ssGet('omg-session');session=raw?JSON.parse(raw):null;}catch(e){session=null;}
 
@@ -288,7 +282,6 @@ function connect(){
 }
 function send(o){
   if(ws&&ws.readyState===1){
-    if(o&&o.t==='act')ui.lastAct=Date.now();
     ws.send(JSON.stringify(o));return true;
   }
   return false;
@@ -310,7 +303,6 @@ function onMsg(m){
       else if(V.gphase==='inspect'&&V.me!==V.merchants[V.inspIdx]){ui.offer=V.offer||0;syncOfferItems();}
     }
     renderAll();
-    checkTurn();
   }else if(m.t==='chat'){
     if(!chatLog.some(function(x){return x.id===m.m.id;}))chatLog.push(m.m);
     renderChat();
@@ -323,26 +315,6 @@ function onMsg(m){
   }else if(m.t==='left'){
     session=null;ssSet('omg-session',null);V=null;chatLog=[];renderAll();
   }
-}
-/* ---------- แจ้งเตือนถึงตาคุณ (ขึ้นกลางหน้าจอ) ---------- */
-function myTurn(){
-  if(!V||V.phase!=='game')return null;
-  var p=V.gphase,me=V.me;
-  if(p==='prep'&&me!==V.sheriff&&V.prep[me]&&V.prep[me].step!=='done')return {key:'prep:'+V.roundNo,text:'เริ่มรอบใหม่ จัดไพ่และถุงของคุณ'};
-  if(p==='inspect'&&V.insp){
-    var k='insp:'+V.roundNo+':'+V.inspIdx;
-    if(me===V.sheriff)return {key:k,text:'ตัดสินใจกับถุงของ '+V.players[V.insp.mi].name};
-    if(me===V.insp.mi)return {key:k,text:'นายด่านกำลังตรวจถุงของคุณ เสนอสินบนได้'};
-  }
-  if(p==='final')return {key:'final',text:'จบเกมแล้ว ดูผลคะแนนได้เลย'};
-  return null;
-}
-function checkTurn(){
-  var t=myTurn();
-  if(!t||t.key===ui.turnKey)return;
-  ui.turnKey=t.key;
-  if(Date.now()-ui.lastAct<900)return;   // ผลจากการกดของเราเอง ไม่ต้องเตือน
-  ui.turnBanner=t.text;renderTurn();
 }
 function syncOfferItems(){
   var it=V.offerItems||{hand:[],stall:{}};
@@ -684,20 +656,13 @@ function renderChat(){
   if(atBottom||chatLog.length<3)elLog.scrollTop=elLog.scrollHeight;
 }
 function renderOv(){elOv.innerHTML=ui.rules?rulesView():'';}
-function turnBannerView(){
-  return '<div class="ov turnbanner" data-act="dismissTurn"><div class="turncard" data-stop="1">'+
-    '<div class="bell" aria-hidden="true">🔔</div><h2>ถึงตาคุณ!</h2><p>'+esc(ui.turnBanner)+'</p>'+
-    '<button class="btn primary block" data-act="dismissTurn">ตกลง</button></div></div>';
-}
-function renderTurn(){elTurn.innerHTML=ui.turnBanner?turnBannerView():'';}
-function renderAll(){renderHdr();renderBars();renderStrip();renderView();renderChat();renderOv();renderTurn();}
+function renderAll(){renderHdr();renderBars();renderStrip();renderView();renderChat();renderOv();}
 
 /* ---------- การกระทำของผู้เล่น ---------- */
 function flashToast(t,ms){ui.toast=t;renderBars();setTimeout(function(){if(ui.toast===t){ui.toast='';renderBars();}},ms||2000);}
 function onAct(a,d){
   switch(a){
     case 'dismiss':ui.error='';renderBars();return;
-    case 'dismissTurn':ui.turnBanner=null;renderTurn();return;
     case 'create':
       lsSet('omg-name',ui.name);
       send({t:'create',name:ui.name});return;
