@@ -196,6 +196,7 @@ th{color:var(--dim);font-weight:500}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--line);flex:0 0 auto}
 .dot.on{background:var(--leaf)}
 .off{font-size:11px;color:var(--wax);font-weight:600}
+.botbadge{font-size:15px;line-height:1;display:inline-flex;align-items:center;justify-content:center;width:18px}
 .discord{text-decoration:none;display:flex;align-items:center;justify-content:center;background:#5865F2;border-color:#5865F2;color:#fff}
 .discord:hover{opacity:.92}
 .turnbanner{display:flex;align-items:center;justify-content:center}
@@ -409,7 +410,7 @@ function renderStrip(){
   if(!V||V.phase!=='game'||V.gphase==='final'){elStrip.innerHTML='';return;}
   elStrip.innerHTML='<div class="strip">'+V.players.map(function(p,i){
     var stall=ALL.filter(function(k){return p.stall[k]>0;}).map(function(k){return '<span class="'+(G(k).legal?'':'x')+'" title="'+G(k).name+'">'+G(k).emoji+p.stall[k]+'</span>';}).join('')||'<span class="dim">แผงว่าง</span>';
-    return '<div class="pl'+(i===V.sheriff?' sheriff':'')+(i===V.me?' me':'')+'"><div class="pn">'+esc(p.name)+(i===V.me?' <span class="dim">(คุณ)</span>':'')+(i===V.sheriff?'<span class="badge">นายด่าน</span>':'')+(p.online?'':'<span class="off">ออฟไลน์</span>')+'</div>'+
+    return '<div class="pl'+(i===V.sheriff?' sheriff':'')+(i===V.me?' me':'')+'"><div class="pn">'+esc(p.name)+(p.bot?' <span class="botbadge" title="บอท">🤖</span>':'')+(i===V.me?' <span class="dim">(คุณ)</span>':'')+(i===V.sheriff?'<span class="badge">นายด่าน</span>':'')+(!p.bot&&!p.online?'<span class="off">ออฟไลน์</span>':'')+'</div>'+
       '<div class="pc"><i class="coin"></i>'+p.coins+'</div><div class="ps">'+stall+'</div></div>';
   }).join('')+'</div>';
 }
@@ -437,11 +438,12 @@ function lobbyView(){
         ?'<span class="pair"><button class="btn danger sm2" data-act="kickYes" data-i="'+i+'">เตะออก</button><button class="btn sm2" data-act="kickNo">ยกเลิก</button></span>'
         :'<button class="btn sm2" data-act="kickAsk" data-i="'+i+'" aria-label="เตะ '+esc(m.name)+'">เตะ</button>';
     }
-    return '<li><span class="dot '+(m.online?'on':'')+'"></span>'+esc(m.name)+(i===V.me?' <span class="dim">(คุณ)</span>':'')+(i===V.host?' <span class="badge">โฮสต์</span>':'')+(m.online?'':' <span class="off">ออฟไลน์</span>')+kick+'</li>';
+    return '<li>'+(m.bot?'<span class="botbadge" title="บอท">🤖</span>':'<span class="dot '+(m.online?'on':'')+'"></span>')+esc(m.name)+(i===V.me?' <span class="dim">(คุณ)</span>':'')+(i===V.host?' <span class="badge">โฮสต์</span>':'')+(!m.bot&&!m.online?' <span class="off">ออฟไลน์</span>':'')+kick+'</li>';
   }).join('');
   var out='<section class="stage"><div class="center"><p class="dim">รหัสห้อง</p><h2 class="bigcode">'+esc(V.code)+'</h2></div>'+
     '<div><input class="linkbox" readonly value="'+esc(link)+'" aria-label="ลิงก์เชิญ"><button class="btn block" style="margin-top:8px" data-act="copyLink">คัดลอกลิงก์เชิญ</button></div>'+
-    '<div><h3 class="lb">ผู้เล่น '+V.members.length+' คน</h3><ul class="plist">'+list+'</ul></div>';
+    '<div><h3 class="lb">ผู้เล่น '+V.members.length+' คน</h3><ul class="plist">'+list+'</ul>'+
+    (isHost?'<button class="btn block" style="margin-top:10px" data-act="addBot"'+(V.members.length>=20?' disabled':'')+'>+ เพิ่มบอท</button>':'')+'</div>';
   if(isHost){
     out+='<div><h3 class="lb">เป็นนายด่านคนละกี่รอบ</h3>'+
       '<div class="bribe" style="margin-top:8px"><button class="step" data-act="roundsAdj" data-d="-1" aria-label="ลดจำนวนรอบ">−</button><input id="roundsIn" type="number" inputmode="numeric" min="1" max="50" value="'+V.rounds+'" aria-label="จำนวนรอบต่อคน"><button class="step" data-act="roundsAdj" data-d="1" aria-label="เพิ่มจำนวนรอบ">+</button></div>'+
@@ -709,6 +711,7 @@ function onAct(a,d){
       catch(e){flashToast('คัดลอกไม่ได้ ให้กดค้างที่ช่องลิงก์แล้วคัดลอกเอง');}
       return;
     }
+    case 'addBot':send({t:'addBot'});return;
     case 'roundsAdj':send({t:'settings',rounds:Math.max(1,Math.min(50,V.rounds+(+d.d)))});return;
     case 'start':send({t:'start'});return;
     case 'leave':send({t:'leave'});session=null;ssSet('omg-session',null);V=null;chatLog=[];renderAll();return;
