@@ -133,7 +133,7 @@ function effHost(room){
   return i<0?0:i;
 }
 function viewFor(room,seat){
-  const v={code:room.code,phase:room.phase,me:seat,host:effHost(room),rounds:room.rounds,
+  const v={code:room.code,phase:room.phase,me:seat,host:effHost(room),rounds:room.rounds,startCoins:room.startCoins,
     members:room.members.map(function(m){return {name:m.name,online:!!m.conn,bot:!!m.bot};}),
     chat:room.chat.slice(-40)};
   if(room.phase!=='game')return v;
@@ -362,7 +362,7 @@ function handle(conn,m){
     case 'create':{
       if(rooms.size>=MAX_ROOMS)return err(conn,'เซิร์ฟเวอร์เต็มชั่วคราว ลองใหม่อีกครั้งภายหลัง');
       leaveRoom(conn);
-      const room={code:makeCode(),members:[],rounds:2,phase:'lobby',S:null,chat:[],chatId:0,last:Date.now(),botBusy:new Set()};
+      const room={code:makeCode(),members:[],rounds:2,startCoins:50,phase:'lobby',S:null,chat:[],chatId:0,last:Date.now(),botBusy:new Set()};
       const member={name:cleanName(m.name)||'ผู้เล่น 1',token:newToken(),conn:null};
       room.members.push(member);rooms.set(room.code,room);
       attach(conn,room,member);broadcast(room);return;
@@ -398,7 +398,8 @@ function handle(conn,m){
   switch(m.t){
     case 'settings':
       if(!isHost||room.phase!=='lobby')return;
-      room.rounds=Math.max(1,Math.min(50,parseInt(m.rounds,10)||1));
+      if(m.rounds!==undefined)room.rounds=Math.max(1,Math.min(50,parseInt(m.rounds,10)||1));
+      if(m.coins!==undefined)room.startCoins=Math.max(0,Math.min(999,parseInt(m.coins,10)||0));
       broadcast(room);return;
     case 'kick':{
       if(!isHost||room.phase!=='lobby')return;
@@ -420,7 +421,7 @@ function handle(conn,m){
     case 'start':
       if(!isHost||room.phase!=='lobby')return;
       if(room.members.length<2)return err(conn,'ต้องมีผู้เล่นอย่างน้อย 2 คน');
-      room.S=E.newGame(room.members.map(function(x){return x.name;}),room.rounds);
+      room.S=E.newGame(room.members.map(function(x){return x.name;}),room.rounds,undefined,room.startCoins);
       room.phase='game';broadcastAndBots(room);return;
     case 'chat':{
       const text=String(m.text==null?'':m.text).replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,200);

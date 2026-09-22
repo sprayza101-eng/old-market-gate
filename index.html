@@ -417,9 +417,14 @@ function lobbyView(){
     '<div><h3 class="lb">ผู้เล่น '+V.members.length+' คน</h3><ul class="plist">'+list+'</ul>'+
     (isHost?'<button class="btn block" style="margin-top:10px" data-act="addBot"'+(V.members.length>=20?' disabled':'')+'>+ เพิ่มบอท</button>':'')+'</div>';
   if(isHost){
-    out+='<div><h3 class="lb">เป็นนายด่านคนละกี่รอบ</h3>'+
-      '<div class="bribe" style="margin-top:8px"><button class="step" data-act="roundsAdj" data-d="-1" aria-label="ลดจำนวนรอบ">−</button><input id="roundsIn" type="number" inputmode="numeric" min="1" max="50" value="'+V.rounds+'" aria-label="จำนวนรอบต่อคน"><button class="step" data-act="roundsAdj" data-d="1" aria-label="เพิ่มจำนวนรอบ">+</button></div>'+
-      '<p class="dim sm center" style="margin-top:6px">รวม '+(V.members.length*V.rounds)+' รอบ · ประมาณ '+Math.round(V.members.length*V.rounds*3)+' นาที · ตั้งได้ 1–50 รอบต่อคน</p></div>'+
+    var sc=V.startCoins==null?50:V.startCoins;
+    out+='<div><h3 class="lb">ตั้งค่าเกม</h3>'+
+      '<p class="dim sm" style="margin-top:8px">เป็นนายด่านคนละกี่รอบ</p>'+
+      '<div class="bribe" style="margin-top:4px"><button class="step" data-act="roundsAdj" data-d="-1" aria-label="ลดจำนวนรอบ">−</button><input id="roundsIn" type="number" inputmode="numeric" min="1" max="50" value="'+V.rounds+'" aria-label="จำนวนรอบต่อคน"><button class="step" data-act="roundsAdj" data-d="1" aria-label="เพิ่มจำนวนรอบ">+</button></div>'+
+      '<p class="dim sm center" style="margin-top:6px">รวม '+(V.members.length*V.rounds)+' รอบ · ประมาณ '+Math.round(V.members.length*V.rounds*3)+' นาที · ตั้งได้ 1–50 รอบต่อคน</p>'+
+      '<p class="dim sm" style="margin-top:14px">เหรียญเริ่มต้นของผู้เล่นแต่ละคน</p>'+
+      '<div class="bribe" style="margin-top:4px"><button class="step" data-act="coinsAdj" data-d="-10" aria-label="ลดเหรียญเริ่มต้น">−</button><input id="coinsIn" type="number" inputmode="numeric" min="0" max="999" step="10" value="'+sc+'" aria-label="เหรียญเริ่มต้น"><button class="step" data-act="coinsAdj" data-d="10" aria-label="เพิ่มเหรียญเริ่มต้น">+</button></div>'+
+      '<p class="dim sm center" style="margin-top:6px">ค่าเริ่มต้น 50 เหรียญ · ตั้งได้ 0–999 เหรียญ</p></div>'+
       '<button class="btn primary block" data-act="start"'+(V.members.length<2?' disabled':'')+'>เริ่มเกม</button>';
   }else{
     out+='<p class="lead center">รอโฮสต์กดเริ่มเกม…</p>';
@@ -678,6 +683,7 @@ function onAct(a,d){
     }
     case 'addBot':send({t:'addBot'});return;
     case 'roundsAdj':send({t:'settings',rounds:Math.max(1,Math.min(50,V.rounds+(+d.d)))});return;
+    case 'coinsAdj':send({t:'settings',coins:Math.max(0,Math.min(999,(V.startCoins==null?50:V.startCoins)+(+d.d)))});return;
     case 'start':send({t:'start'});return;
     case 'leave':send({t:'leave'});session=null;ssSet('omg-session',null);V=null;chatLog=[];renderAll();return;
     case 'rules':ui.rules=true;renderOv();return;
@@ -786,6 +792,10 @@ document.addEventListener('change',function(e){
   if(t.id==='roundsIn'&&V){
     var v=parseInt(t.value,10);if(isNaN(v)||v<1)v=1;if(v>50)v=50;
     t.value=v;send({t:'settings',rounds:v});
+  }
+  if(t.id==='coinsIn'&&V){
+    var vc=parseInt(t.value,10);if(isNaN(vc)||vc<0)vc=0;if(vc>999)vc=999;
+    t.value=vc;send({t:'settings',coins:vc});
   }
 });
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.rules){ui.rules=false;renderOv();}});

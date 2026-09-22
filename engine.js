@@ -34,11 +34,12 @@ function giftValue(g){
   (g.hand||[]).forEach(function(c){v+=GOODS[c.t].value;});
   return v;
 }
-function newGame(names,rounds,rnd){
+function newGame(names,rounds,rnd,startCoins){
   rnd=rnd||Math.random;
+  const sc=(startCoins==null||isNaN(startCoins))?START_COINS:Math.max(0,Math.min(999,startCoins|0));
   const S={
     nextId:1,extra:0,
-    players:names.map(function(n){return {name:n,coins:START_COINS,hand:[],stall:emptyStall()};}),
+    players:names.map(function(n){return {name:n,coins:sc,hand:[],stall:emptyStall()};}),
     deck:[],piles:[[],[]],
     rounds:rounds,totalRounds:names.length*rounds,roundNo:0,sheriff:0,
     merchants:[],prep:{},bags:{},inspIdx:0,offer:0,offerItems:{hand:[],stall:{}},bounty:{},last:null,phase:'prep',log:[]
