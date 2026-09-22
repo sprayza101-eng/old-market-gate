@@ -24,15 +24,27 @@ function shuffle(a,rnd){for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(
 function emptyStall(){const o={};ALL.forEach(function(k){o[k]=0;});return o;}
 function uniq(ids){return Array.from(new Set(ids));}
 
-function newGame(names,rounds,rnd){
+function newStats(){
+  return {bags:0,lies:0,liesPassed:0,caught:0,honestOpened:0,inspected:0,passed:0,contrabandPassed:0,
+    bribeGiven:0,bribeGivenCount:0,bribeTaken:0,bribeTakenCount:0,bountyGiven:0,penPaid:0,penGot:0};
+}
+function giftValue(g){
+  let v=g.coins||0;
+  Object.keys(g.stall||{}).forEach(function(t){v+=GOODS[t].value*g.stall[t];});
+  (g.hand||[]).forEach(function(c){v+=GOODS[c.t].value;});
+  return v;
+}
+function newGame(names,rounds,rnd,startCoins){
   rnd=rnd||Math.random;
+  const sc=(startCoins==null||isNaN(startCoins))?START_COINS:Math.max(0,Math.min(999,startCoins|0));
   const S={
     nextId:1,extra:0,
-    players:names.map(function(n){return {name:n,coins:START_COINS,hand:[],stall:emptyStall()};}),
+    players:names.map(function(n){return {name:n,coins:sc,hand:[],stall:emptyStall()};}),
     deck:[],piles:[[],[]],
     rounds:rounds,totalRounds:names.length*rounds,roundNo:0,sheriff:0,
     merchants:[],prep:{},bags:{},inspIdx:0,offer:0,offerItems:{hand:[],stall:{}},bounty:{},last:null,phase:'prep',log:[]
   };
+  S.stats=S.players.map(newStats);
   const scale=Math.max(1,Math.ceil(names.length/5));
   ALL.forEach(function(t){for(let i=0;i<DECK_COUNTS[t]*scale;i++)S.deck.push({id:S.nextId++,t:t});});
   shuffle(S.deck,rnd);
@@ -218,6 +230,20 @@ function resolve(S,mode){
     res.kept=kept;res.seized=seized;
   }
   res.kept.forEach(function(c){m.stall[c.t]++;});
+  const stt=S.stats,ms=stt[mi],ss=stt[S.sheriff];
+  ms.bags++;
+  if(!truth){ms.lies++;if(mode!=='inspect')ms.liesPassed++;}
+  if(mode==='inspect'){
+    ss.inspected++;
+    if(res.honest){ss.honestOpened++;ss.penPaid+=res.paid;ms.penGot+=res.paid;}
+    else{ms.caught++;ms.penPaid+=res.paid;ss.penGot+=res.paid;}
+  }else if(mode==='pass'){ss.passed++;}
+  else{
+    const gv=giftValue(res.gave);
+    ms.bribeGiven+=gv;ms.bribeGivenCount++;ss.bribeTaken+=gv;ss.bribeTakenCount++;
+  }
+  res.kept.forEach(function(c){if(!GOODS[c.t].legal)ms.contrabandPassed++;});
+  res.bounty.forEach(function(b){stt[b.seat].bountyGiven+=giftValue(b.gave);});
   delete S.bags[mi];
   S.offer=0;S.offerItems={hand:[],stall:{}};S.bounty={};
   S.last=res;S.phase='result';
@@ -276,7 +302,28 @@ function score(S){
   return {rows:rows,kq:kq};
 }
 
-return {describeGave:describeGave,GOODS:GOODS,ALL:ALL,LEGAL:LEGAL,HAND:HAND,BAG_MAX:BAG_MAX,DISCARD_MAX:DISCARD_MAX,
+function awards(S){
+  const defs=[
+    {k:'liar',icon:'🤥',title:'นักโกหกตัวยง',f:'lies',t:function(v){return 'โกหกในถุง '+v+' ครั้ง';}},
+    {k:'smooth',icon:'😏',title:'เนียนกริบ',f:'liesPassed',t:function(v){return 'โกหกแล้วผ่านด่านไปได้ '+v+' ครั้ง';}},
+    {k:'caught',icon:'🚨',title:'ซวยที่สุด',f:'caught',t:function(v){return 'ถูกจับได้ '+v+' ครั้ง';}},
+    {k:'smuggler',icon:'🏴‍☠️',title:'จอมลักลอบ',f:'contrabandPassed',t:function(v){return 'ลักของเถื่อนผ่านด่าน '+v+' ใบ';}},
+    {k:'briber',icon:'💰',title:'ราชาสินบน',f:'bribeGiven',t:function(v){return 'จ่ายสินบนมูลค่ารวม '+v+' เหรียญ';}},
+    {k:'takenSheriff',icon:'🤫',title:'นายด่านรับใต้โต๊ะ',f:'bribeTaken',t:function(v){return 'รับสินบนมูลค่ารวม '+v+' เหรียญ';}},
+    {k:'wrong',icon:'🤦',title:'สงสัยผิดคน',f:'honestOpened',t:function(v){return 'เปิดถุงคนพูดจริง '+v+' ครั้ง';}},
+    {k:'strict',icon:'🔍',title:'นายด่านเหล็ก',f:'inspected',t:function(v){return 'เปิดถุงตรวจ '+v+' ครั้ง';}},
+    {k:'maker',icon:'🕴️',title:'ผู้ชักใย',f:'bountyGiven',t:function(v){return 'เสนอให้เปิดถุงรวมมูลค่า '+v+' เหรียญ';}}
+  ];
+  return defs.map(function(d){
+    const vals=S.stats.map(function(x){return x[d.f];});
+    const max=Math.max.apply(null,vals);
+    if(!(max>0))return null;
+    return {key:d.k,icon:d.icon,title:d.title,text:d.t(max),
+      seats:vals.map(function(v,i){return v===max?i:-1;}).filter(function(i){return i>=0;})};
+  }).filter(Boolean);
+}
+
+return {awards:awards,describeGave:describeGave,GOODS:GOODS,ALL:ALL,LEGAL:LEGAL,HAND:HAND,BAG_MAX:BAG_MAX,DISCARD_MAX:DISCARD_MAX,
   newGame:newGame,drawCard:drawCard,discardCards:discardCards,toLoad:toLoad,loadBag:loadBag,
   setOffer:setOffer,setBounty:setBounty,resolve:resolve,nextAfterResult:nextAfterResult,startNextRound:startNextRound,score:score};
 });
