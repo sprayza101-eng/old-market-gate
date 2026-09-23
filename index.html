@@ -526,10 +526,10 @@ function giftBuilder(o){
   var hand=sortHand(o.hand);
   var handCards=hand.map(function(c){return cardBtn(c,o.handSel.has(c.id),o.acts.card);}).join('');
   var pending=o.coins>0||o.handSel.size>0||Object.keys(o.stallSel).some(function(t){return o.stallSel[t]>0;});
-  return '<div><h3 class="lb">เหรียญ (คุณมี '+o.p.coins+')</h3><div class="bribe" style="margin-top:8px"><button class="step" data-act="'+o.acts.adj+'" data-d="-5" aria-label="ลดเหรียญ">−</button><input id="'+o.acts.input+'" type="number" inputmode="numeric" min="0" max="'+o.p.coins+'" step="5" value="'+o.coins+'" aria-label="จำนวนเหรียญ"><button class="step" data-act="'+o.acts.adj+'" data-d="5" aria-label="เพิ่มเหรียญ">+</button></div></div>'+
+  return '<div class="btns two"><button id="giftSend" class="btn primary" data-act="'+o.acts.send+'"'+(pending?'':' disabled')+'>'+o.sendLabel+'</button><button class="btn" data-act="'+o.acts.clear+'"'+(o.hasSent?'':' disabled')+'>ถอนข้อเสนอ</button></div>'+
+    '<div><h3 class="lb">เหรียญ (คุณมี '+o.p.coins+')</h3><div class="bribe" style="margin-top:8px"><button class="step" data-act="'+o.acts.adj+'" data-d="-5" aria-label="ลดเหรียญ">−</button><input id="'+o.acts.input+'" type="number" inputmode="numeric" min="0" max="'+o.p.coins+'" step="5" value="'+o.coins+'" aria-label="จำนวนเหรียญ"><button class="step" data-act="'+o.acts.adj+'" data-d="5" aria-label="เพิ่มเหรียญ">+</button></div></div>'+
     (stallRows?'<div><h3 class="lb">สินค้าจากแผงของคุณ</h3><div style="margin-top:6px">'+stallRows+'</div></div>':'')+
-    (hand.length?'<div><h3 class="lb">ไพ่จากมือ (แตะเพื่อเลือก)</h3><p class="dim sm">ไพ่ที่เสนอจะถูกเปิดให้ทุกคนเห็น</p><div class="hand" style="margin-top:8px">'+handCards+'</div></div>':'')+
-    '<div class="btns two"><button id="giftSend" class="btn primary" data-act="'+o.acts.send+'"'+(pending?'':' disabled')+'>'+o.sendLabel+'</button><button class="btn" data-act="'+o.acts.clear+'"'+(o.hasSent?'':' disabled')+'>ถอนข้อเสนอ</button></div>';
+    (hand.length?'<div><h3 class="lb">ไพ่จากมือ (แตะเพื่อเลือก)</h3><p class="dim sm">ไพ่ที่เสนอจะถูกเปิดให้ทุกคนเห็น</p><div class="hand" style="margin-top:8px">'+handCards+'</div></div>':'');
 }
 function inspectView(){
   var i=V.insp,m=V.players[i.mi],sh=V.players[V.sheriff],g=G(i.declared);
