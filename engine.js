@@ -121,7 +121,7 @@ function loadBag(S,pi,ids,declared){
   S.bags[pi]={cards:cards,declared:declared};
   pr.step='done';
   if(S.merchants.every(function(mi){return S.prep[mi].step==='done';})){
-    S.phase='inspect';S.inspIdx=0;S.offer=0;S.offerItems={hand:[],stall:{}};S.bounty={};
+    S.phase='inspect';S.inspIdx=0;S.offer=0;S.offerItems={hand:[],stall:{}};S.bounty={};S.inspStartAt=Date.now();
   }
   return true;
 }
@@ -253,6 +253,7 @@ function nextAfterResult(S){
   if(S.phase!=='result')return false;
   S.inspIdx++;S.last=null;S.offer=0;S.offerItems={hand:[],stall:{}};S.bounty={};
   S.phase=S.inspIdx>=S.merchants.length?'roundEnd':'inspect';
+  if(S.phase==='inspect')S.inspStartAt=Date.now();
   return true;
 }
 function startNextRound(S){

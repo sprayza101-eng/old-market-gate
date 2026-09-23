@@ -335,6 +335,13 @@ function giveText(g){
   if(g.hand&&g.hand.length)parts.push('ไพ่จากมือ '+g.hand.map(function(c){return G(c.t).emoji;}).join(''));
   return parts.join(' + ');
 }
+function sheriffWaitMs(){
+  if(!V||!V.insp||V.insp.startAt==null||V.inspectDelay==null)return 0;
+  return Math.max(0,V.insp.startAt+V.inspectDelay*1000-Date.now());
+}
+setInterval(function(){
+  if(V&&V.phase==='game'&&V.gphase==='inspect'&&V.insp&&V.me===V.sheriff&&sheriffWaitMs()>0)renderView();
+},500);
 function offerNow(){
   var it=V.offerItems||{hand:[],stall:{}};
   return giveText({coins:V.offer||0,hand:it.hand,stall:it.stall});
@@ -418,13 +425,17 @@ function lobbyView(){
     (isHost?'<button class="btn block" style="margin-top:10px" data-act="addBot"'+(V.members.length>=20?' disabled':'')+'>+ เพิ่มบอท</button>':'')+'</div>';
   if(isHost){
     var sc=V.startCoins==null?50:V.startCoins;
+    var dl=V.inspectDelay==null?10:V.inspectDelay;
     out+='<div><h3 class="lb">ตั้งค่าเกม</h3>'+
       '<p class="dim sm" style="margin-top:8px">เป็นนายด่านคนละกี่รอบ</p>'+
       '<div class="bribe" style="margin-top:4px"><button class="step" data-act="roundsAdj" data-d="-1" aria-label="ลดจำนวนรอบ">−</button><input id="roundsIn" type="number" inputmode="numeric" min="1" max="50" value="'+V.rounds+'" aria-label="จำนวนรอบต่อคน"><button class="step" data-act="roundsAdj" data-d="1" aria-label="เพิ่มจำนวนรอบ">+</button></div>'+
       '<p class="dim sm center" style="margin-top:6px">รวม '+(V.members.length*V.rounds)+' รอบ · ประมาณ '+Math.round(V.members.length*V.rounds*3)+' นาที · ตั้งได้ 1–50 รอบต่อคน</p>'+
       '<p class="dim sm" style="margin-top:14px">เหรียญเริ่มต้นของผู้เล่นแต่ละคน</p>'+
       '<div class="bribe" style="margin-top:4px"><button class="step" data-act="coinsAdj" data-d="-10" aria-label="ลดเหรียญเริ่มต้น">−</button><input id="coinsIn" type="number" inputmode="numeric" min="0" max="999" step="10" value="'+sc+'" aria-label="เหรียญเริ่มต้น"><button class="step" data-act="coinsAdj" data-d="10" aria-label="เพิ่มเหรียญเริ่มต้น">+</button></div>'+
-      '<p class="dim sm center" style="margin-top:6px">ค่าเริ่มต้น 50 เหรียญ · ตั้งได้ 0–999 เหรียญ</p></div>'+
+      '<p class="dim sm center" style="margin-top:6px">ค่าเริ่มต้น 50 เหรียญ · ตั้งได้ 0–999 เหรียญ</p>'+
+      '<p class="dim sm" style="margin-top:14px">หน่วงเวลาก่อนนายด่านกดตัดสินใจได้ (ให้เวลาพ่อค้าต่อรอง/เสนอสินบนก่อน)</p>'+
+      '<div class="bribe" style="margin-top:4px"><button class="step" data-act="delayAdj" data-d="-5" aria-label="ลดเวลาหน่วง">−</button><input id="delayIn" type="number" inputmode="numeric" min="0" max="60" step="5" value="'+dl+'" aria-label="วินาทีหน่วงเวลา"><button class="step" data-act="delayAdj" data-d="5" aria-label="เพิ่มเวลาหน่วง">+</button></div>'+
+      '<p class="dim sm center" style="margin-top:6px">'+(dl>0?('รอ '+dl+' วินาทีก่อนนายด่านกดปุ่มตัดสินใจได้'):'ไม่มีการหน่วงเวลา (นายด่านกดได้ทันที)')+' · ตั้งได้ 0–60 วินาที</p></div>'+
       '<button class="btn primary block" data-act="start"'+(V.members.length<2?' disabled':'')+'>เริ่มเกม</button>';
   }else{
     out+='<p class="lead center">รอโฮสต์กดเริ่มเกม…</p>';
@@ -515,7 +526,7 @@ function giftBuilder(o){
   var hand=sortHand(o.hand);
   var handCards=hand.map(function(c){return cardBtn(c,o.handSel.has(c.id),o.acts.card);}).join('');
   var pending=o.coins>0||o.handSel.size>0||Object.keys(o.stallSel).some(function(t){return o.stallSel[t]>0;});
-  return '<div><h3 class="lb">เหรียญ (คุณมี '+o.p.coins+')</h3><div class="bribe" style="margin-top:8px"><button class="step" data-act="'+o.acts.adj+'" data-d="-1" aria-label="ลดเหรียญ">−</button><input id="'+o.acts.input+'" type="number" inputmode="numeric" min="0" max="'+o.p.coins+'" value="'+o.coins+'" aria-label="จำนวนเหรียญ"><button class="step" data-act="'+o.acts.adj+'" data-d="1" aria-label="เพิ่มเหรียญ">+</button></div></div>'+
+  return '<div><h3 class="lb">เหรียญ (คุณมี '+o.p.coins+')</h3><div class="bribe" style="margin-top:8px"><button class="step" data-act="'+o.acts.adj+'" data-d="-5" aria-label="ลดเหรียญ">−</button><input id="'+o.acts.input+'" type="number" inputmode="numeric" min="0" max="'+o.p.coins+'" step="5" value="'+o.coins+'" aria-label="จำนวนเหรียญ"><button class="step" data-act="'+o.acts.adj+'" data-d="5" aria-label="เพิ่มเหรียญ">+</button></div></div>'+
     (stallRows?'<div><h3 class="lb">สินค้าจากแผงของคุณ</h3><div style="margin-top:6px">'+stallRows+'</div></div>':'')+
     (hand.length?'<div><h3 class="lb">ไพ่จากมือ (แตะเพื่อเลือก)</h3><p class="dim sm">ไพ่ที่เสนอจะถูกเปิดให้ทุกคนเห็น</p><div class="hand" style="margin-top:8px">'+handCards+'</div></div>':'')+
     '<div class="btns two"><button id="giftSend" class="btn primary" data-act="'+o.acts.send+'"'+(pending?'':' disabled')+'>'+o.sendLabel+'</button><button class="btn" data-act="'+o.acts.clear+'"'+(o.hasSent?'':' disabled')+'>ถอนข้อเสนอ</button></div>';
@@ -529,10 +540,12 @@ function inspectView(){
   var offerLine='<p class="center">สินบนจากเจ้าของถุง: <b>'+(nowOffer||'ยังไม่มี')+'</b></p>'+bountyInfo();
   var hasBounty=bountyEntries().length>0;
   if(iAmSheriff){
+    var waitMs=sheriffWaitMs(),waiting=waitMs>0,waitSec=Math.ceil(waitMs/1000);
     return '<section class="stage">'+head+offerLine+
       '<p class="lead center">คุยต่อรองกับ '+esc(m.name)+' ในแชต แล้วตัดสินใจ</p>'+
-      '<div class="btns"><button class="btn primary block" data-act="accept"'+(nowOffer?'':' disabled')+'>'+(nowOffer?'รับสินบน: '+nowOffer+' (ปล่อยผ่านโดยไม่เปิด)':'รับสินบน (ยังไม่มีข้อเสนอ)')+'</button>'+
-      '<div class="btns two"><button class="btn" data-act="pass">ปล่อยผ่าน</button><button class="btn danger" data-act="inspect">เปิดถุงตรวจ'+(hasBounty?' (+ข้อเสนอ)':'')+'</button></div></div>'+
+      (waiting?'<p class="dim sm center">รออีก '+waitSec+' วินาทีก่อนตัดสินใจได้ (ให้เวลาพ่อค้าต่อรองและเสนอสินบน)</p>':'')+
+      '<div class="btns"><button class="btn primary block" data-act="accept"'+(nowOffer&&!waiting?'':' disabled')+'>'+(nowOffer?'รับสินบน: '+nowOffer+' (ปล่อยผ่านโดยไม่เปิด)':'รับสินบน (ยังไม่มีข้อเสนอ)')+'</button>'+
+      '<div class="btns two"><button class="btn" data-act="pass"'+(waiting?' disabled':'')+'>ปล่อยผ่าน</button><button class="btn danger" data-act="inspect"'+(waiting?' disabled':'')+'>เปิดถุงตรวจ'+(hasBounty?' (+ข้อเสนอ)':'')+'</button></div></div>'+
       '<p class="dim sm center">ถ้าเปิดแล้วพ่อค้าพูดจริง คุณต้องจ่ายค่าปรับ '+(g.pen*i.n)+' เหรียญให้ '+esc(m.name)+(hasBounty?' · ผู้เสนอจะมอบของให้คุณก็ต่อเมื่อคุณเปิดถุงนี้ (รับสินบนจากเจ้าของถุงหรือปล่อยผ่านจะไม่ได้)':'')+'</p></section>';
   }
   if(iAmMerchant){
@@ -684,6 +697,7 @@ function onAct(a,d){
     case 'addBot':send({t:'addBot'});return;
     case 'roundsAdj':send({t:'settings',rounds:Math.max(1,Math.min(50,V.rounds+(+d.d)))});return;
     case 'coinsAdj':send({t:'settings',coins:Math.max(0,Math.min(999,(V.startCoins==null?50:V.startCoins)+(+d.d)))});return;
+    case 'delayAdj':send({t:'settings',delay:Math.max(0,Math.min(60,(V.inspectDelay==null?10:V.inspectDelay)+(+d.d)))});return;
     case 'start':send({t:'start'});return;
     case 'leave':send({t:'leave'});session=null;ssSet('omg-session',null);V=null;chatLog=[];renderAll();return;
     case 'rules':ui.rules=true;renderOv();return;
@@ -796,6 +810,10 @@ document.addEventListener('change',function(e){
   if(t.id==='coinsIn'&&V){
     var vc=parseInt(t.value,10);if(isNaN(vc)||vc<0)vc=0;if(vc>999)vc=999;
     t.value=vc;send({t:'settings',coins:vc});
+  }
+  if(t.id==='delayIn'&&V){
+    var vd=parseInt(t.value,10);if(isNaN(vd)||vd<0)vd=0;if(vd>60)vd=60;
+    t.value=vd;send({t:'settings',delay:vd});
   }
 });
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.rules){ui.rules=false;renderOv();}});

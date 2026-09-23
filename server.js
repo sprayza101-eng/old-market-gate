@@ -15,6 +15,8 @@ const STATIC={
   '/index.html':['index.html','text/html; charset=utf-8'],
   '/engine.js':['engine.js','application/javascript; charset=utf-8']
 };
+const GOOD_KEYS=E.ALL; // ชื่อไฟล์ภาพที่อนุญาต: img/<ชนิดสินค้า>.jpg เท่านั้น
+GOOD_KEYS.forEach(function(k){STATIC['/img/'+k+'.jpg']=['img/'+k+'.jpg','image/jpeg'];});
 
 /* ---------- HTTP ---------- */
 const server=http.createServer(function(req,res){
@@ -22,9 +24,10 @@ const server=http.createServer(function(req,res){
   if(u==='/healthz'){res.writeHead(200,{'Content-Type':'text/plain'});res.end('ok');return;}
   const f=STATIC[u];
   if(!f||(req.method!=='GET'&&req.method!=='HEAD')){res.writeHead(404,{'Content-Type':'text/plain'});res.end('Not found');return;}
+  const isImg=u.indexOf('/img/')===0;
   fs.readFile(path.join(__dirname,f[0]),function(err,data){
     if(err){res.writeHead(500,{'Content-Type':'text/plain'});res.end('Server error');return;}
-    res.writeHead(200,{'Content-Type':f[1],'Cache-Control':'no-cache'});
+    res.writeHead(200,{'Content-Type':f[1],'Cache-Control':isImg?'public, max-age=604800, immutable':'no-cache'});
     res.end(req.method==='HEAD'?undefined:data);
   });
 });
@@ -130,7 +133,7 @@ function effHost(room){
   return i<0?0:i;
 }
 function viewFor(room,seat){
-  const v={code:room.code,phase:room.phase,me:seat,host:effHost(room),rounds:room.rounds,startCoins:room.startCoins,
+  const v={code:room.code,phase:room.phase,me:seat,host:effHost(room),rounds:room.rounds,startCoins:room.startCoins,inspectDelay:room.inspectDelay==null?10:room.inspectDelay,
     members:room.members.map(function(m){return {name:m.name,online:!!m.conn,bot:!!m.bot};}),
     chat:room.chat.slice(-40)};
   if(room.phase!=='game')return v;
@@ -157,7 +160,7 @@ function viewFor(room,seat){
   }v.log=S.log;v.last=S.last;
   if(S.phase==='inspect'){
     const mi=S.merchants[S.inspIdx],b=S.bags[mi];
-    v.insp={mi:mi,declared:b.declared,n:b.cards.length};
+    v.insp={mi:mi,declared:b.declared,n:b.cards.length,startAt:S.inspStartAt||Date.now()};
   }
   v.myBag=S.bags[seat]||null;
   if(S.phase==='final'){v.score=E.score(S);v.awards=E.awards(S);v.stats=S.stats;}
@@ -279,7 +282,10 @@ function maybeScheduleBots(room){
     });
     const shMem=room.members[S.sheriff];
     if(shMem&&shMem.bot){
-      scheduleBot(room,'decide:'+S.sheriff+':'+roundNo+':'+inspIdx,BOT_DELAY.decide,function(){
+      // บอทนายด่านก็ต้องรอไม่น้อยกว่าเวลาหน่วงที่โฮสต์ตั้งไว้ เหมือนผู้เล่นจริง
+      const waitMs=(room.inspectDelay||0)*1000;
+      const decideRange=[Math.max(BOT_DELAY.decide[0],waitMs),Math.max(BOT_DELAY.decide[1],waitMs+1400)];
+      scheduleBot(room,'decide:'+S.sheriff+':'+roundNo+':'+inspIdx,decideRange,function(){
         if(!same())return;botDecide(S);broadcastAndBots(room);
       });
     }
@@ -359,7 +365,7 @@ function handle(conn,m){
     case 'create':{
       if(rooms.size>=MAX_ROOMS)return err(conn,'เซิร์ฟเวอร์เต็มชั่วคราว ลองใหม่อีกครั้งภายหลัง');
       leaveRoom(conn);
-      const room={code:makeCode(),members:[],rounds:2,startCoins:50,phase:'lobby',S:null,chat:[],chatId:0,last:Date.now(),botBusy:new Set()};
+      const room={code:makeCode(),members:[],rounds:2,startCoins:50,inspectDelay:10,phase:'lobby',S:null,chat:[],chatId:0,last:Date.now(),botBusy:new Set()};
       const member={name:cleanName(m.name)||'ผู้เล่น 1',token:newToken(),conn:null};
       room.members.push(member);rooms.set(room.code,room);
       attach(conn,room,member);broadcast(room);return;
@@ -397,6 +403,7 @@ function handle(conn,m){
       if(!isHost||room.phase!=='lobby')return;
       if(m.rounds!==undefined)room.rounds=Math.max(1,Math.min(50,parseInt(m.rounds,10)||1));
       if(m.coins!==undefined)room.startCoins=Math.max(0,Math.min(999,parseInt(m.coins,10)||0));
+      if(m.delay!==undefined)room.inspectDelay=Math.max(0,Math.min(60,parseInt(m.delay,10)||0));
       broadcast(room);return;
     case 'kick':{
       if(!isHost||room.phase!=='lobby')return;
@@ -456,9 +463,13 @@ function game(room,me,isHost,m){
     if(a==='bounty')changed=E.setBounty(S,me,m.amount,toIds(m.hand),m.stall);
     else if(me===S.merchants[S.inspIdx]&&a==='offer')changed=E.setOffer(S,m.amount,toIds(m.hand),m.stall);
     else if(me===S.sheriff){
-      if(a==='accept')changed=!!E.resolve(S,'bribe');
-      else if(a==='pass')changed=!!E.resolve(S,'pass');
-      else if(a==='inspect')changed=!!E.resolve(S,'inspect');
+      const wait=(room.inspectDelay||0)*1000;
+      const tooSoon=wait>0&&(Date.now()-(S.inspStartAt||0))<wait;
+      if(!tooSoon){
+        if(a==='accept')changed=!!E.resolve(S,'bribe');
+        else if(a==='pass')changed=!!E.resolve(S,'pass');
+        else if(a==='inspect')changed=!!E.resolve(S,'inspect');
+      }
     }
   }else if(S.phase==='result'){
     if(me===S.sheriff&&a==='next')changed=E.nextAfterResult(S);
