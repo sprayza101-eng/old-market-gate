@@ -341,8 +341,15 @@ function sheriffWaitMs(){
   if(!V||!V.insp||V.insp.startAt==null||V.inspectDelay==null)return 0;
   return Math.max(0,V.insp.startAt+V.inspectDelay*1000-Date.now());
 }
+var lastSheriffWaiting=false;
 setInterval(function(){
-  if(V&&V.phase==='game'&&V.gphase==='inspect'&&V.insp&&V.me===V.sheriff&&sheriffWaitMs()>0)renderView();
+  if(V&&V.phase==='game'&&V.gphase==='inspect'&&V.insp&&V.me===V.sheriff){
+    var waiting=sheriffWaitMs()>0;
+    if(waiting||lastSheriffWaiting)renderView();
+    lastSheriffWaiting=waiting;
+  }else{
+    lastSheriffWaiting=false;
+  }
 },500);
 function offerNow(){
   var it=V.offerItems||{hand:[],stall:{}};
