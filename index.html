@@ -278,18 +278,19 @@ th{color:var(--dim);font-weight:500}
 'use strict';
 
 const GOODS={
-  apple:{name:'แอปเปิล',emoji:'🍎',value:2,pen:2,legal:true,king:20,queen:10},
-  cheese:{name:'ชีส',emoji:'🧀',value:3,pen:2,legal:true,king:15,queen:10},
-  bread:{name:'ขนมปัง',emoji:'🍞',value:3,pen:2,legal:true,king:15,queen:10},
-  chicken:{name:'ไก่',emoji:'🐔',value:4,pen:2,legal:true,king:10,queen:5},
-  pepper:{name:'พริกไทย',emoji:'🌶️',value:6,pen:4,legal:false,bonus:{chicken:2}},
-  mead:{name:'น้ำผึ้งหมัก',emoji:'🍯',value:7,pen:4,legal:false,bonus:{bread:2}},
-  silk:{name:'ผ้าไหม',emoji:'🧵',value:8,pen:4,legal:false,bonus:{cheese:3}},
-  crossbow:{name:'หน้าไม้',emoji:'🏹',value:9,pen:4,legal:false,bonus:{apple:2}}
+  apple:{name:'แอปเปิล',emoji:'🍎',value:2,pen:2,legal:true},
+  cheese:{name:'ชีส',emoji:'🧀',value:3,pen:2,legal:true},
+  bread:{name:'ขนมปัง',emoji:'🍞',value:3,pen:2,legal:true},
+  chicken:{name:'ไก่',emoji:'🐔',value:4,pen:2,legal:true},
+  pepper:{name:'พริกไทย',emoji:'🌶️',value:6,pen:4,legal:false},
+  mead:{name:'น้ำผึ้งหมัก',emoji:'🍯',value:7,pen:4,legal:false},
+  silk:{name:'ผ้าไหม',emoji:'🧵',value:8,pen:4,legal:false},
+  crossbow:{name:'หน้าไม้',emoji:'🏹',value:9,pen:4,legal:false}
 };
 const ALL=Object.keys(GOODS);
 const LEGAL=ALL.filter(function(k){return GOODS[k].legal;});
 const DECK_COUNTS={apple:48,cheese:36,bread:36,chicken:24,pepper:22,mead:21,silk:12,crossbow:5};
+const TOP_BONUS=10,SECOND_BONUS=5;
 const HAND=6,BAG_MAX=5,DISCARD_MAX=5,START_COINS=50;
 
 function shuffle(a,rnd){for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));const t=a[i];a[i]=a[j];a[j]=t;}return a;}
@@ -537,36 +538,21 @@ function startNextRound(S){
   return true;
 }
 function score(S){
-  const eff=S.players.map(function(p){
-    const c={};LEGAL.forEach(function(k){c[k]=p.stall[k];});
-    ALL.forEach(function(k){const b=GOODS[k].bonus;if(b)for(const t in b)c[t]+=b[t]*p.stall[k];});
-    return c;
-  });
   const bonus=S.players.map(function(){return 0;});
   const bonusList=S.players.map(function(){return [];});
   const kq=[];
-  LEGAL.forEach(function(t){
-    const g=GOODS[t];
-    const arr=eff.map(function(c,i){return {i:i,n:c[t]};}).filter(function(x){return x.n>0;}).sort(function(a,b){return b.n-a.n;});
-    if(!arr.length){kq.push({t:t,kings:[],queens:[],tie:false});return;}
-    const top=arr[0].n;
-    const kings=arr.filter(function(x){return x.n===top;});
-    if(kings.length>1){
-      const share=Math.floor((g.king+g.queen)/kings.length);
-      kings.forEach(function(x){bonus[x.i]+=share;bonusList[x.i].push({t:t,role:'tie',amt:share});});
-      kq.push({t:t,kings:kings.map(function(x){return x.i;}),queens:[],tie:true});
-    }else{
-      bonus[kings[0].i]+=g.king;bonusList[kings[0].i].push({t:t,role:'king',amt:g.king});
-      const rest=arr.filter(function(x){return x.n<top;});
-      let queens=[];
-      if(rest.length){
-        const q=rest[0].n;
-        queens=rest.filter(function(x){return x.n===q;});
-        const share=Math.floor(g.queen/queens.length);
-        queens.forEach(function(x){bonus[x.i]+=share;bonusList[x.i].push({t:t,role:'queen',amt:share});});
-      }
-      kq.push({t:t,kings:[kings[0].i],queens:queens.map(function(x){return x.i;}),tie:false});
-    }
+  ALL.forEach(function(t){
+    let top=0;
+    S.players.forEach(function(p){if(p.stall[t]>top)top=p.stall[t];});
+    if(top<=0){kq.push({t:t,tops:[],seconds:[],n:0,n2:0});return;}
+    let second=0;
+    S.players.forEach(function(p){if(p.stall[t]<top&&p.stall[t]>second)second=p.stall[t];});
+    const tops=[],seconds=[];
+    S.players.forEach(function(p,i){
+      if(p.stall[t]===top){tops.push(i);bonus[i]+=TOP_BONUS;bonusList[i].push({t:t,role:'top',amt:TOP_BONUS});}
+      else if(second>0&&p.stall[t]===second){seconds.push(i);bonus[i]+=SECOND_BONUS;bonusList[i].push({t:t,role:'second',amt:SECOND_BONUS});}
+    });
+    kq.push({t:t,tops:tops,seconds:seconds,n:top,n2:second});
   });
   const rows=S.players.map(function(p,i){
     let goods=0;ALL.forEach(function(k){goods+=GOODS[k].value*p.stall[k];});
@@ -596,7 +582,7 @@ function awards(S){
   }).filter(Boolean);
 }
 
-return {awards:awards,describeGave:describeGave,GOODS:GOODS,ALL:ALL,LEGAL:LEGAL,HAND:HAND,BAG_MAX:BAG_MAX,DISCARD_MAX:DISCARD_MAX,
+return {awards:awards,describeGave:describeGave,GOODS:GOODS,TOP_BONUS:TOP_BONUS,SECOND_BONUS:SECOND_BONUS,ALL:ALL,LEGAL:LEGAL,HAND:HAND,BAG_MAX:BAG_MAX,DISCARD_MAX:DISCARD_MAX,
   newGame:newGame,drawCard:drawCard,discardCards:discardCards,toLoad:toLoad,loadBag:loadBag,
   setOffer:setOffer,setBounty:setBounty,resolve:resolve,nextAfterResult:nextAfterResult,startNextRound:startNextRound,score:score};
 });
@@ -979,7 +965,7 @@ function finalView(){
   var rows=sc.rows.slice().sort(function(a,b){return b.total-a.total;});
   var best=rows[0].total;
   var winners=rows.filter(function(r){return r.total===best;});
-  var roleTxt={king:'ราชา',queen:'ราชินี',tie:'ราชาร่วม'};
+  var roleTxt={top:'อันดับ 1',second:'อันดับ 2'};
   var list=rows.map(function(r,idx){
     var bl=r.bonusList.map(function(b){return G(b.t).emoji+' '+roleTxt[b.role]+' +'+b.amt;}).join(' · ');
     return '<div class="rk'+(r.total===best?' win':'')+'"><span class="no">'+(idx+1)+'</span><span class="nm">'+pname(r.i)+(r.i===V.me?' (คุณ)':'')+'</span><span class="tot">'+r.total+'</span>'+
@@ -987,13 +973,13 @@ function finalView(){
   }).join('');
   var kq=sc.kq.map(function(k){
     var nm=function(a){return a.map(function(i){return pname(i);}).join(', ');};
-    if(!k.kings.length)return '<div>'+G(k.t).emoji+' '+G(k.t).name+': ไม่มีใครมีสินค้าชนิดนี้</div>';
-    return '<div>'+G(k.t).emoji+' '+G(k.t).name+': '+(k.tie?'ราชาร่วม '+nm(k.kings)+' (แบ่งโบนัส)':'ราชา '+nm(k.kings)+(k.queens.length?' · ราชินี '+nm(k.queens):''))+'</div>';
+    if(!k.tops.length)return '<div>'+G(k.t).emoji+' '+G(k.t).name+': ไม่มีใครมีสินค้าชนิดนี้</div>';
+    return '<div>'+G(k.t).emoji+' '+G(k.t).name+': 🥇 '+nm(k.tops)+' ('+k.n+' ใบ) +'+Eng.TOP_BONUS+(k.seconds.length?' · 🥈 '+nm(k.seconds)+' ('+k.n2+' ใบ) +'+Eng.SECOND_BONUS:'')+'</div>';
   }).join('');
   return '<section class="stage"><div class="center"><p class="dim">ผู้ชนะ</p><h2 style="font-size:32px">'+winners.map(function(w){return pname(w.i);}).join(' และ ')+'</h2></div>'+
     '<div class="rank">'+list+'</div>'+
     awardsHTML()+
-    '<div><h3 class="lb">ราชาและราชินีของสินค้าถูกกฎหมาย</h3><div class="kq" style="margin-top:8px">'+kq+'</div></div>'+
+    '<div><h3 class="lb">ผู้ครองอันดับ 1–2 ของสินค้าแต่ละชนิด</h3><div class="kq" style="margin-top:8px">'+kq+'</div></div>'+
     (V.host===V.me?'<button class="btn primary block" data-act="again">เล่นอีกครั้ง (กลับห้องรอ)</button>':'<p class="lead center">รอโฮสต์เริ่มเกมใหม่…</p>')+'</section>';
 }
 function rulesView(){
@@ -1013,29 +999,24 @@ function rulesView(){
     '<p>ของที่ผ่านด่านจะหงายขึ้นเข้าแผงของพ่อค้า (รวมของเถื่อนด้วย)</p>'+
     '<h3 class="lb">นับคะแนนตอนจบ</h3>'+
     '<ul><li>เหรียญที่มี + ขายทุกอย่างในแผงตามราคา</li>'+
-    '<li>โบนัส: ใครมีสินค้าถูกกฎหมายชนิดใดมากที่สุดได้เป็น<b>ราชา</b> รองลงมาได้<b>ราชินี</b> ถ้าเสมอกันที่ราชา แบ่งโบนัสราชาและราชินีรวมกัน (ปัดลง) และไม่มีราชินี</li>'+
-    '<li>ของเถื่อนในแผงนับเป็นสินค้าถูกกฎหมายเพิ่มให้ตามชนิด เพื่อแย่งตำแหน่งราชา/ราชินี (ดูรายละเอียดที่ปุ่ม "ราคาสินค้า")</li></ul>'+
+    '<li>โบนัส: ใครมีสินค้าชนิดใดในแผง<b>มากที่สุด (อันดับ 1)</b> ได้ <b>+10</b> อันดับ 2 ได้ <b>+5</b> ต่อสินค้า 1 ชนิด ถ้าเสมอกันที่อันดับไหน ทุกคนที่เสมอได้โบนัสอันดับนั้นครบ (ถ้าเสมออันดับ 1 อันดับ 2 คือคนที่มีรองลงมา) นับทั้งสินค้าถูกกฎหมายและของเถื่อน</li></ul>'+
     '<p class="dim sm">เกมนี้เป็นเกมสร้างเองแรงบันดาลใจจากเกมบลัฟบนโต๊ะ เหรียญและแผงของทุกคนแสดงเปิดเผยเพื่อความง่ายในการต่อรอง</p>'+
     '<button class="btn primary block" data-act="closeRules">ปิด</button></div></div>';
 }
 function goodsView(){
-  var legalRows=LEGAL.map(function(k){
+  var row=function(k){
     var g=G(k);
-    return '<tr><td class="gn"><span class="ge">'+g.emoji+'</span>'+g.name+'</td><td class="v">'+g.value+'</td><td class="p">'+g.pen+'</td>'+
-      '<td class="b k">+'+g.king+'</td><td class="b q">+'+g.queen+'</td></tr>';
-  }).join('');
-  var contraRows=ALL.filter(function(k){return !G(k).legal;}).map(function(k){
-    var g=G(k);
-    var bn=Object.keys(g.bonus).map(function(t){return '<span class="chip x">'+G(t).emoji+' '+G(t).name+' ×'+g.bonus[t]+'</span>';}).join('');
-    return '<tr><td class="gn"><span class="ge">'+g.emoji+'</span>'+g.name+'</td><td class="v">'+g.value+'</td><td class="p">'+g.pen+'</td><td class="gx" colspan="2">'+bn+'</td></tr>';
-  }).join('');
+    return '<tr><td class="gn"><span class="ge">'+g.emoji+'</span>'+g.name+'</td><td class="v">'+g.value+'</td><td class="p">'+g.pen+'</td><td class="b k">+'+Eng.TOP_BONUS+'</td><td class="b q">+'+Eng.SECOND_BONUS+'</td></tr>';
+  };
+  var legalRows=LEGAL.map(row).join('');
+  var contraRows=ALL.filter(function(k){return !G(k).legal;}).map(row).join('');
   return '<div class="ov goodsov" data-act="closeGoods"><div class="sheet gsheet" role="dialog" aria-modal="true" aria-label="ราคาสินค้า" data-stop="1">'+
     '<h2>ราคาสินค้า</h2>'+
-    '<table class="gtable"><thead><tr><th class="gn">สินค้า</th><th>ราคาขาย<small>ต่อใบ</small></th><th>ค่าปรับ<small>ต่อใบ</small></th><th>โบนัส<br>ราชา</th><th>โบนัส<br>ราชินี</th></tr></thead><tbody>'+
+    '<table class="gtable"><thead><tr><th class="gn">สินค้า</th><th>ราคาขาย<small>ต่อใบ</small></th><th>ค่าปรับ<small>ต่อใบ</small></th><th>โบนัส<small>อันดับ 1</small></th><th>โบนัส<small>อันดับ 2</small></th></tr></thead><tbody>'+
     '<tr class="grp"><td colspan="5">สินค้าถูกกฎหมาย <span class="badge">ประกาศในถุงได้</span></td></tr>'+legalRows+
-    '<tr class="grp x"><td colspan="5">ของเถื่อน <span class="badge x">แอบใส่ได้ ประกาศไม่ได้</span> <span class="gsub">ผ่านด่านแล้วนับเพิ่มให้</span></td></tr>'+contraRows+
+    '<tr class="grp x"><td colspan="5">ของเถื่อน <span class="badge x">แอบใส่ได้ ประกาศไม่ได้</span></td></tr>'+contraRows+
     '</tbody></table>'+
-    '<p class="gnote">ราชา/ราชินี = คนที่มีสินค้าชนิดนั้นมากสุด/รองลงมาตอนจบเกม<br>ค่าปรับ: ถูกยึด พ่อค้าจ่ายนายตรวจต่อใบ · เปิดถุงที่พูดจริง นายตรวจจ่ายพ่อค้าตามสินค้าที่ประกาศ</p>'+
+    '<p class="gnote">โบนัสตอนจบเกม: ใครมีสินค้าชนิดนั้นในแผงมากสุดได้ +'+Eng.TOP_BONUS+' รองลงมาได้ +'+Eng.SECOND_BONUS+' (เสมอกันได้ทุกคน) นับทุกชนิด รวมของเถื่อน<br>ค่าปรับ: ถูกยึด พ่อค้าจ่ายนายตรวจต่อใบ · เปิดถุงที่พูดจริง นายตรวจจ่ายพ่อค้าตามสินค้าที่ประกาศ</p>'+
     '<button class="btn primary block" data-act="closeGoods">ปิด</button></div></div>';
 }
 
