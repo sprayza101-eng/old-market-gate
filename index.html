@@ -50,7 +50,7 @@ button,input{font:inherit;color:inherit}
 .top,main,.strip,.bar{max-width:720px;margin-inline:auto}
 .top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 16px 8px}
 .brand{display:flex;align-items:center;gap:8px;font-family:'Chonburi',serif;font-size:18px}
-.tools{display:flex;align-items:center;gap:6px}
+.tools{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .round{font-size:14px;color:var(--dim);margin-right:4px;white-space:nowrap}
 .ghost{background:none;border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:14px;cursor:pointer;color:var(--ink)}
 .ghost:hover{background:var(--surface2)}
@@ -62,6 +62,34 @@ button,input{font:inherit;color:inherit}
 .pl{flex:0 0 auto;min-width:108px;padding:8px 12px;border-radius:12px;background:var(--surface);border:1px solid var(--line)}
 .pl.sheriff{border-color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold)}
 .pn{font-weight:600;font-size:15px;line-height:1.4;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.goodsbtn{background:var(--gold);border-color:var(--gold);color:var(--goldink);font-weight:700;font-size:15px;padding:8px 16px;min-height:40px;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.goodsbtn:hover{background:var(--gold);filter:brightness(1.08)}
+.gdrow{padding:12px 14px}
+.gdhead b{font-size:18px}
+.gdemoji{font-size:30px}
+.gdstats{font-size:15px;gap:6px}
+.gdstats span:first-child{font-size:18px;color:var(--ink);font-weight:600}
+.goodsov{display:flex;align-items:center;padding:6px}
+.gsheet{width:100%;max-width:640px;padding:10px 8px;margin:auto}
+.gsheet>*+*{margin-top:5px}
+.gsheet h2{font-size:19px;text-align:center;margin:0}
+.gtable{width:100%;border-collapse:collapse;font-size:14px;table-layout:auto}
+.gtable th,.gtable td{padding:2px 3px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap;vertical-align:middle}
+.gtable th{font-size:12.5px;color:var(--ink);font-weight:700;line-height:1.2}
+.gtable th small{display:block;font-size:10.5px;font-weight:400;color:var(--dim)}
+.gtable .gn{text-align:left;font-weight:600}
+.gtable .ge{font-size:19px;margin-right:3px;vertical-align:middle}
+.gtable td.v,.gtable td.p{font-size:19px;font-weight:700}
+.gtable td.p{color:var(--wax)}
+.gtable td.b{font-size:16px;font-weight:700;color:var(--goldtext)}
+.gtable td.q{font-weight:600}
+.gtable td.gx{text-align:left}
+.gtable .grp td{text-align:left;background:var(--surface2);font-weight:700;font-size:13px;padding:4px 6px;white-space:normal}
+.gsub{font-size:11px;font-weight:400;color:var(--dim);margin-left:2px}
+.chip{display:inline-block;font-size:12.5px;font-weight:600;border-radius:999px;padding:0 8px;line-height:1.6;white-space:nowrap}
+.chip.x{background:var(--waxbg);border:1px solid var(--wax);color:var(--ink)}
+.gnote{font-size:11px;color:var(--dim);line-height:1.4;margin:0}
+.gsheet .btn{min-height:40px}
 .badge{font-size:11px;font-weight:600;background:var(--gold);color:var(--goldink);border-radius:999px;padding:0 8px;line-height:1.6}
 .pc{display:flex;align-items:center;gap:6px;font-family:'Chonburi',serif;font-size:18px;line-height:1.5}
 .coin{display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--gold);box-shadow:inset 0 0 0 3px rgba(60,30,0,.2)}
@@ -717,9 +745,8 @@ function renderHdr(){
   elHdr.innerHTML='<header class="top"><div class="brand">'+emblem()+'<span>ด่านตลาดเก่า</span></div><div class="tools">'+
     (V&&V.phase==='game'&&V.gphase!=='final'?'<span class="round">รอบ '+(V.roundNo+1)+'/'+V.totalRounds+'</span>':'')+
     (V?'<span class="code" title="รหัสห้อง">'+esc(V.code)+'</span>':'')+
-    (V&&V.phase==='game'&&V.host===V.me&&V.gphase!=='final'?'<button class="ghost" data-act="endAsk">ยุติเกม</button>':'')+
     '<button class="ghost" data-act="rules">กติกา</button>'+
-    '<button class="ghost" data-act="goods">ราคาสินค้า</button>'+
+    '<button class="ghost goodsbtn" data-act="goods" aria-label="ดูราคาสินค้า">💰 ราคาสินค้า</button>'+
     (V?'<button class="ghost" data-act="leave">ออก</button>':'')+
     '</div></header>';
 }
@@ -727,7 +754,6 @@ function renderBars(){
   var h='';
   if(!ui.online)h+='<div class="bar" role="status"><span>ขาดการเชื่อมต่อ กำลังต่อใหม่…</span></div>';
   if(ui.error)h+='<div class="bar" role="alert"><span>'+esc(ui.error)+'</span><span class="row"><button class="btn" data-act="dismiss">ปิด</button></span></div>';
-  if(ui.confirmEnd)h+='<div class="bar" role="alert"><span>ยุติเกมและกลับห้องรอ? ความคืบหน้าจะหายไป</span><span class="row"><button class="btn danger" data-act="endYes">ยุติเกม</button><button class="btn" data-act="endNo">ยกเลิก</button></span></div>';
   if(ui.toast)h+='<div class="bar ok" role="status"><span>'+esc(ui.toast)+'</span></div>';
   elBars.innerHTML=h;
 }
@@ -995,20 +1021,21 @@ function rulesView(){
 function goodsView(){
   var legalRows=LEGAL.map(function(k){
     var g=G(k);
-    return '<div class="gdrow"><div class="gdhead"><span class="gdemoji">'+g.emoji+'</span><b>'+g.name+'</b><span class="badge">ถูกกฎหมาย</span></div>'+
-      '<div class="gdstats"><span>ราคาขาย <b>'+g.value+'</b> เหรียญ/ใบ</span><span>ถ้าโกหกแล้วโดนจับ ค่าปรับ <b>'+g.pen+'</b> เหรียญ/ใบ</span><span>ถ้าเป็น<b>ราชา</b>ของสินค้านี้ท้ายเกม +'+g.king+' เหรียญ ถ้าเป็น<b>ราชินี</b> +'+g.queen+' เหรียญ</span></div></div>';
+    return '<tr><td class="gn"><span class="ge">'+g.emoji+'</span>'+g.name+'</td><td class="v">'+g.value+'</td><td class="p">'+g.pen+'</td>'+
+      '<td class="b k">+'+g.king+'</td><td class="b q">+'+g.queen+'</td></tr>';
   }).join('');
   var contraRows=ALL.filter(function(k){return !G(k).legal;}).map(function(k){
     var g=G(k);
-    var bn=Object.keys(g.bonus).map(function(t){return G(t).emoji+' '+G(t).name+' นับเพิ่ม ×'+g.bonus[t];}).join(', ');
-    return '<div class="gdrow"><div class="gdhead"><span class="gdemoji">'+g.emoji+'</span><b>'+g.name+'</b><span class="badge x">ของเถื่อน</span></div>'+
-      '<div class="gdstats"><span>ราคาขาย <b>'+g.value+'</b> เหรียญ/ใบ</span><span>ถ้าถูกยึด ค่าปรับ <b>'+g.pen+'</b> เหรียญ/ใบ ให้เจ้าของถุง</span><span>ประกาศเป็นสินค้านี้ไม่ได้ ต้องแอบใส่ปนไปกับของที่ประกาศ — ถ้าผ่านด่านได้ '+bn+'</span></div></div>';
+    var bn=Object.keys(g.bonus).map(function(t){return '<span class="chip x">'+G(t).emoji+' '+G(t).name+' ×'+g.bonus[t]+'</span>';}).join('');
+    return '<tr><td class="gn"><span class="ge">'+g.emoji+'</span>'+g.name+'</td><td class="v">'+g.value+'</td><td class="p">'+g.pen+'</td><td class="gx" colspan="2">'+bn+'</td></tr>';
   }).join('');
-  return '<div class="ov" data-act="closeGoods"><div class="sheet" role="dialog" aria-modal="true" aria-label="ราคาสินค้า" data-stop="1">'+
+  return '<div class="ov goodsov" data-act="closeGoods"><div class="sheet gsheet" role="dialog" aria-modal="true" aria-label="ราคาสินค้า" data-stop="1">'+
     '<h2>ราคาสินค้า</h2>'+
-    '<p class="lead">ราคาขาย ค่าปรับ และโบนัสท้ายเกมของสินค้าทุกชนิด ใช้ดูตอนต่อรองสินบนหรือประเมินความเสี่ยงตอนโกหก</p>'+
-    '<h3 class="lb">สินค้าถูกกฎหมาย (ประกาศในถุงได้)</h3><div class="gdlist">'+legalRows+'</div>'+
-    '<h3 class="lb">ของเถื่อน (แอบใส่ในถุงได้ แต่ประกาศไม่ได้)</h3><div class="gdlist">'+contraRows+'</div>'+
+    '<table class="gtable"><thead><tr><th class="gn">สินค้า</th><th>ราคาขาย<small>ต่อใบ</small></th><th>ค่าปรับ<small>ต่อใบ</small></th><th>โบนัส<br>ราชา</th><th>โบนัส<br>ราชินี</th></tr></thead><tbody>'+
+    '<tr class="grp"><td colspan="5">สินค้าถูกกฎหมาย <span class="badge">ประกาศในถุงได้</span></td></tr>'+legalRows+
+    '<tr class="grp x"><td colspan="5">ของเถื่อน <span class="badge x">แอบใส่ได้ ประกาศไม่ได้</span> <span class="gsub">ผ่านด่านแล้วนับเพิ่มให้</span></td></tr>'+contraRows+
+    '</tbody></table>'+
+    '<p class="gnote">ราชา/ราชินี = คนที่มีสินค้าชนิดนั้นมากสุด/รองลงมาตอนจบเกม<br>ค่าปรับ: ถูกยึด พ่อค้าจ่ายนายตรวจต่อใบ · เปิดถุงที่พูดจริง นายตรวจจ่ายพ่อค้าตามสินค้าที่ประกาศ</p>'+
     '<button class="btn primary block" data-act="closeGoods">ปิด</button></div></div>';
 }
 
