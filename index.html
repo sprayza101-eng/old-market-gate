@@ -946,14 +946,16 @@ function roundEndView(){
     (V.me===V.sheriff?'<button class="btn primary block" data-act="nextRound">'+(lastRound?'ดูผลคะแนนสุดท้าย':'รอบต่อไป — '+pname(nextShIdx)+' เป็นนายตรวจ')+'</button>':'<p class="lead center">รอ '+pname(V.sheriff)+' กดไปต่อ…</p>')+'</section>';
 }
 function awardsHTML(){
-  var aw=V.awards||[],st=V.stats||[];
+  var st=V.stats||[];
+  var aw=V.awards;
+  if(!aw){try{aw=st.length?Eng.awards({stats:st}):[];}catch(e){aw=[];}}
   var list=aw.map(function(a){
     return '<div class="aw"><span class="ic" aria-hidden="true">'+a.icon+'</span><b>'+esc(a.title)+' · '+a.seats.map(function(i){return pname(i);}).join(', ')+'</b><span class="d">'+esc(a.text)+'</span></div>';
   }).join('');
   var tbl='';
   if(st.length){
     tbl='<div class="tw"><table><thead><tr><th>ผู้เล่น</th><th>โกหก</th><th>ถูกจับ</th><th>สินบนจ่าย</th><th>สินบนรับ</th></tr></thead><tbody>'+
-      V.players.map(function(p,i){var x=st[i];return '<tr><td>'+esc(p.name)+numTag(i)+'</td><td>'+x.lies+'</td><td>'+x.caught+'</td><td>'+x.bribeGiven+'</td><td>'+x.bribeTaken+'</td></tr>';}).join('')+
+      V.players.map(function(p,i){var x=Object.assign({lies:0,caught:0,bribeGiven:0,bribeTaken:0},st[i]||{});return '<tr><td>'+esc(p.name)+numTag(i)+'</td><td>'+x.lies+'</td><td>'+x.caught+'</td><td>'+x.bribeGiven+'</td><td>'+x.bribeTaken+'</td></tr>';}).join('')+
       '</tbody></table></div><p class="dim sm">สินบนนับเป็นมูลค่าเหรียญรวมของที่เสนอ (เหรียญ + ราคาสินค้า)</p>';
   }
   if(!list&&!tbl)return '';
@@ -962,6 +964,8 @@ function awardsHTML(){
 }
 function finalView(){
   var sc=V.score;
+  if(!sc||!sc.rows||!sc.rows.length||!sc.kq){try{sc=Eng.score({players:V.players});}catch(e){sc=null;}}
+  if(!sc||!sc.rows||!sc.rows.length)return '<section class="stage"><h2>จบเกมแล้ว</h2><p class="lead center">โหลดสรุปผลไม่สำเร็จ ลองรีเฟรชหน้านี้</p></section>';
   var rows=sc.rows.slice().sort(function(a,b){return b.total-a.total;});
   var best=rows[0].total;
   var winners=rows.filter(function(r){return r.total===best;});
@@ -1041,7 +1045,8 @@ function renderChat(){
   if(atBottom||chatLog.length<3)elLog.scrollTop=elLog.scrollHeight;
 }
 function renderOv(){elOv.innerHTML=ui.rules?rulesView():ui.goods?goodsView():'';}
-function renderAll(){renderHdr();renderBars();renderStrip();renderView();renderChat();renderOv();}
+function safeRun(fn){try{fn();}catch(e){try{console.error(e);}catch(_){}}}
+function renderAll(){[renderHdr,renderBars,renderStrip,renderView,renderChat,renderOv].forEach(safeRun);}
 
 /* ---------- การกระทำของผู้เล่น ---------- */
 function flashToast(t,ms){ui.toast=t;renderBars();setTimeout(function(){if(ui.toast===t){ui.toast='';renderBars();}},ms||2000);}
